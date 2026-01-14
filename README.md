@@ -10,7 +10,7 @@ Due to the rarity of human tissue specimens derived from healthy donors our unde
 
 **Project Description**: Cell Strata takes a .csv list of dataset identifiers specific to GEO / Cell Census repositories as an input from multiple tissue types to query the GEO or Cell Census databases to extract single cell gene expression matricies in .h5ad format. The resulting .5had file is then subject to quality control, normalization, integration, and cell type annotation to identify key marker genes for a cell type of interest. Cells that are identified are clustered and subjected to differential gene expression analysis to identify discreet transcriptional states and better understand how tissue of origin impacts gene expression profiles. 
 
-**Inputs**: Cell Strata takes a .csv file input to query the GEO / Cell Census databases for single cell gene expression data downloaded in the .5had format. Resulting data is the processed and added into a seperate containers within the original .5had file. 
+**Inputs**: Cell Strata takes a .csv file input to query the GEO / Cell Census databases for single cell gene expression data downloaded in the .5had format. Resulting data is the processed and added into seperate containers within the original .5had file. 
 
 **Final Output**
 The final output will be a directory of csv files representing differentially expressed genes between the discreet clusters of mast cells that are identified and tissue wise comparison of gene expression profiles. 
