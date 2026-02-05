@@ -1,8 +1,3 @@
----
-
-# M1: (Week 2)
-
----
 
 ## Activity 1: Set-up project, design documents, implement first function with an output (census_query.py).
 
@@ -41,7 +36,7 @@
 - **Subtask 2.2.3:** Test and revise. 
 
 ### Task 2.3: Annotation
-- **Subtask 2.3.1:** 
+- **Subtask 2.3.1:** Write Code 
 - **Subtask 2.3.2:**
 - **Subtask 2.3.3:** 
 
