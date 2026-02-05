@@ -1,0 +1,24 @@
+# CellStrata Dependencies
+# Install with: pip install -r requirements.txt
+
+# Core data science
+pandas>=2.0.0
+numpy>=1.24.0
+
+# CELLxGENE Census and single-cell
+cellxgene-census>=1.0.0
+scanpy>=1.9.0
+anndata>=0.9.0
+
+# Arrow/Parquet support
+pyarrow>=12.0.0
+
+# TileDB (optional, for advanced S3 tuning)
+tiledbsoma>=1.5.0
+
+# Configuration
+pyyaml>=6.0
+
+# Visualization (optional)
+matplotlib>=3.7.0
+seaborn>=0.12.0

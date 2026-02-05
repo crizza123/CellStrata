@@ -14,12 +14,6 @@ obs_filters:
   assay_labels: ["10x 3' v2", "10x 3' v3", "10x multiome"]
   sex_labels: ["male", "female"]
 
-  # optional “organ” filter (coarse)
-  tissue_general_labels: ["lung", "blood"]
-
-  # optional cell type filter
-  cell_type_labels: ["B cell"]
-
   # additional custom fragment if you need it
   # extra_value_filter: "development_stage != 'unknown'"
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 run_tests.py - Standalone test runner for census_query module.
-
+Disclaimer AI was used to help write this test suite. Please review carefully.
 Runs tests without pytest, pyarrow, or pandas dependencies.
 """
 
