@@ -59,11 +59,11 @@
 **Deliverables - Activity 3:**
 1. Visualizations, Validation Metrics, and final annotated dataset. 
 
-## Activity 4: 
+## Activity 4: Finalize Documents and Tutorial. Deploy the package.
 
-### Task 4.1: 
-- **Subtask 4.1.1:** 
-- **Subtask 4.1.2:** 
+### Task 4.1: Final Documents 
+- **Subtask 4.1.1:** Update all modules if necessary
+- **Subtask 4.1.2:** Update ReadMe
 
 ### Task 4.2: 
 - **Subtask 4.2.1:** 
