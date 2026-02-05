@@ -47,28 +47,17 @@
 
 ---
 
-## Activity 3: 
+## Activity 3: Scale up and Write code for parallelization 
 
-### Task 3.1: 
-- **Subtask 3.1.1:** 
-- **Subtask 3.1.2:** 
+### Task 3.1: Download Full Dataset
+- **Subtask 3.1.1:** Revise code and troubleshoot.
 
-### Task 3.2: 
-- **Subtask 3.2.1:** 
-- **Subtask 3.2.2:** 
-- **Subtask 3.2.3:** 
+### Task 3.2: Run processing scripts. Implement parallelization options. 
+- **Subtask 3.2.1:** Revise code and troubleshoot.
+- **Subtask 3.2.2:** Implement Code on Greatlakes cluster.
 
 **Deliverables - Activity 3:**
-1. 
-2. 
-3. 
-4. 
-
----
-
-# M2: (Week 4)
-
----
+1. Visualizations, Validation Metrics, and final annotated dataset. 
 
 ## Activity 4: 
 
