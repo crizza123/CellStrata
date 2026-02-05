@@ -16,7 +16,6 @@
 - **Subtask 1.2.2:** Write DDS.md with description of milestones and package architecture.
 - **Subtask 1.2.3:** Create and detail the WBS.md
 
-
 **Deliverables - Activity 1:**
 1. Downloaded test dataset as a .h5ad (first output).
 ---
@@ -26,23 +25,25 @@
 ### Task 2.1: Quality Control Implentation
 - **Subtask 2.1.1:** Write Code 
 - **Subtask 2.1.2:** Write unit tests
-- **Subtask 2.1.3:** Test and revise 
+- **Subtask 2.1.3:** Test and revise
+- **Subtask 2.1.4:** Metric based validation. Generate visualizations.
 
-### Task 2.2: Normalization and Batch Integration
+### Task 2.2: Normalization and Batch Integration (scVI and Harmony)
 - **Subtask 2.2.1:** Write Code 
 - **Subtask 2.2.2:** Write unit tests
-- **Subtask 2.2.3:** Test and revise. 
+- **Subtask 2.2.3:** Test and revise.
+- **Subtask 2.2.4:** Metric based validation. Generate visualizations.
 
-### Task 2.3: Annotation
+### Task 2.3: Annotation (
 - **Subtask 2.3.1:** Write Code 
 - **Subtask 2.3.2:** Write unit tests
-- **Subtask 2.3.3:** Test and revise. 
+- **Subtask 2.3.3:** Test and revise.
+- **Subtask 2.3.4:** Metric based validation. Generate visualizations.
 
 **Deliverables - Activity 2:**
 1. Quality control visualizations 
 2. Batch Effect Removal through evaluating batch mixing with UMAP visualizations, Determination of Clustering Number 
-3. 
-4. 
+3. UMAP projection of annotated mast cells.
 
 ---
 
