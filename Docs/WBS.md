@@ -4,7 +4,7 @@
 
 ---
 
-## Activity 1: Set-up project, design documents, implement first function with an output (query ).
+## Activity 1: Set-up project, design documents, implement first function with an output (census_query.py).
 
 ### Task 1.1: Github repository intialization
 - **Subtask 1.1.1:** Create Readme with description
@@ -14,7 +14,13 @@
 ### Task 1.2: Create 1st draft of Design Documents
 - **Subtask 1.2.1:** Write SRS.md
 - **Subtask 1.2.2:** Write DDS.md with description of milestones and package architecture.
-- **Subtask 1.2.3:** Create and detail the 
+- **Subtask 1.2.3:** Create and detail the WBS
+
+### Task 1.3: Implement the first first module (query 
+- **Subtask 1.2.1:** Write SRS.md
+- **Subtask 1.2.2:** Write DDS.md with description of milestones and package architecture.
+- **Subtask 1.2.3:** Create and detail the WBS.md
+
 
 **Deliverables - Activity 1:**
 1. Design Documents
@@ -22,21 +28,22 @@
 3. Downloaded test dataset as a .h5ad (first output).
 ---
 
-## Activity 2: 
+## Activity 2: Data processing, integration, and annotation. 
 
+### Task 2.1: Quality Control Implentation
+- **Subtask 2.1.1:** Write Code 
+- **Subtask 2.1.2:** Write unit tests
+- **Subtask 2.1.3:** Test and revise 
 
-### Task 2.1: 
-- **Subtask 2.1.1:** 
-- **Subtask 2.1.2:** 
+### Task 2.2: Normalization and Batch Integration
+- **Subtask 2.2.1:** Write Code 
+- **Subtask 2.2.2:** Write unit tests
+- **Subtask 2.2.3:** Test and revise. 
 
-### Task 2.2: 
-- **Subtask 2.2.1:** 
-- **Subtask 2.2.2:** 
-- **Subtask 2.2.3:** 
-
-### Task 2.3: 
+### Task 2.3: Annotation
 - **Subtask 2.3.1:** 
-- **Subtask 2.3.2:** 
+- **Subtask 2.3.2:**
+- **Subtask 2.3.3:** 
 
 **Deliverables - Activity 2:**
 1. 
