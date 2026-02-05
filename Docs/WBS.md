@@ -4,7 +4,7 @@
 
 ---
 
-## Activity 1: Set-up project, design documents, implement first function with an output.
+## Activity 1: Set-up project, design documents, implement first function with an output (query ).
 
 ### Task 1.1: Github repository intialization
 - **Subtask 1.1.1:** Create Readme with description
@@ -18,7 +18,7 @@
 
 **Deliverables - Activity 1:**
 1. Design Documents
-2. 
+2. Write first module and perform unit test (census_query.py)
 3. Downloaded test dataset as a .h5ad (first output).
 ---
 
