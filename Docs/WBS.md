@@ -18,9 +18,7 @@
 
 
 **Deliverables - Activity 1:**
-1. Design Documents
-2. Write first module and perform unit test (census_query.py)
-3. Downloaded test dataset as a .h5ad (first output).
+1. Downloaded test dataset as a .h5ad (first output).
 ---
 
 ## Activity 2: Data processing, integration, and annotation. 
@@ -37,12 +35,12 @@
 
 ### Task 2.3: Annotation
 - **Subtask 2.3.1:** Write Code 
-- **Subtask 2.3.2:**
-- **Subtask 2.3.3:** 
+- **Subtask 2.3.2:** Write unit tests
+- **Subtask 2.3.3:** Test and revise. 
 
 **Deliverables - Activity 2:**
-1. 
-2. 
+1. Quality control visualizations 
+2. Batch Effect Removal through evaluating batch mixing with UMAP visualizations, Determination of Clustering Number 
 3. 
 4. 
 
