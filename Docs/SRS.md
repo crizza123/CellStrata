@@ -1,4 +1,4 @@
-**Project Description**: 
+#Project Description: 
 
 Cell Strata takes a .csv list of dataset identifiers specific to GEO / Cell Census repositories querying  Cell Census databases to obtain associated metadata in .csv and single cell gene expression matricies primarily in .h5ad format. Options for metadata filtering are also available.
 
