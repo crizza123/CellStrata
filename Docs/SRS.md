@@ -1,4 +1,6 @@
-**Project Description**: Cell Strata takes a .csv list of dataset identifiers specific to GEO / Cell Census repositories querying  Cell Census databases to obtain associated metadata in .csv and single cell gene expression matricies primarily in .h5ad format. Options for metadata filtering are also available.
+**Project Description**: 
+
+Cell Strata takes a .csv list of dataset identifiers specific to GEO / Cell Census repositories querying  Cell Census databases to obtain associated metadata in .csv and single cell gene expression matricies primarily in .h5ad format. Options for metadata filtering are also available.
 
 The resulting .5had file is then subject to quality control, normalization, integration, and cell type annotation to identify key marker genes that are known to segerate mast cells from other cell types. Mast cells that are identified are further clustered and subjected to differential gene expression analysis to identify discreet transcriptional states and better understand how tissue of origin impacts gene expression profiles. 
 
