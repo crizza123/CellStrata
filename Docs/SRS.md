@@ -8,6 +8,6 @@ The goal of the project is to extract, process, and identify mast cells from pub
 
 **Features**
 1. CellxGene Census API query for Data 
-2. Quality Control 
-4. Dataset Integration
-5. Annotation across datasets
+2. Quality Control and Filtering.
+4. Dataset Normalization and Integration
+5. Annotation of mast cells across datasets
