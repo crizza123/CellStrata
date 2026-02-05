@@ -65,15 +65,11 @@
 - **Subtask 4.1.1:** Update all modules if necessary
 - **Subtask 4.1.2:** Update ReadMe
 
-### Task 4.2: 
-- **Subtask 4.2.1:** 
-- **Subtask 4.2.2:** 
-- **Subtask 4.2.3:** 
+### Task 4.2: Create Tutorial (.ipnyb) with step-by-step instruciton
+- **Subtask 4.2.1:** Write and test code.
 
 **Deliverables - Activity 4:**
-1. 
-2. 
-3. 
-4. 
-
+1. Finalized Tutorial
+2. Finalized Documents
+3. Deployed Package.
 ---
