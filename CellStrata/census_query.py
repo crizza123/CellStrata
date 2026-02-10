@@ -148,7 +148,7 @@ class ObsFilters:
 @dataclass(frozen=True)
 class OutputSpec:
     """Output specification."""
-    mode: Literal["pandas", "arrow", "anndata", "parquet"] = "pandas"
+    mode: Literal["pandas", "arrow", "anndata", "parquet", "dataset_list"] = "pandas"
     outpath: Optional[str] = None
     overwrite: bool = True
     parquet_compression: str = "zstd"
@@ -600,13 +600,37 @@ def run_query(spec: QuerySpec) -> Union[pd.DataFrame, pa.Table, Any, Path]:
     with cxc.open_soma(census_version=spec.target.census_version, context=context) as census:
         exp = census["census_data"][spec.target.organism]
         obs_keys = list(exp.obs.keys())
-        organ_col = choose_organ_column(obs_keys)
 
         # Build the value filter
         value_filter = build_obs_value_filter(census, spec.obs_filters)
         logger.info(f"Value filter: {value_filter}")
 
-        # Determine export columns
+        mode = spec.output.mode
+        logger.info(f"Output mode: {mode}")
+
+        # dataset_list mode only needs dataset_id — skip column/organ setup
+        if mode == "dataset_list":
+            df = (
+                exp.obs.read(
+                    value_filter=value_filter or None,
+                    column_names=["dataset_id"],
+                )
+                .concat()
+                .to_pandas()
+            )
+            unique_ids = sorted(df["dataset_id"].unique().tolist())
+            logger.info(f"Found {len(unique_ids)} unique dataset(s) "
+                        f"matching filters (from {len(df):,} cells)")
+
+            if spec.output.outpath:
+                outpath = _resolve_outpath(spec.output.outpath, spec.output.overwrite)
+                outpath.write_text("\n".join(unique_ids) + "\n", encoding="utf-8")
+                logger.info(f"Wrote dataset list to {outpath}")
+
+            return unique_ids
+
+        # Determine export columns (not needed for dataset_list)
+        organ_col = choose_organ_column(obs_keys)
         export_cols = build_obs_export_columns(
             obs_keys=obs_keys,
             export_all_non_ontology=spec.export_all_non_ontology_obs_columns,
@@ -617,9 +641,6 @@ def run_query(spec: QuerySpec) -> Union[pd.DataFrame, pa.Table, Any, Path]:
         for required in ("cell_type", "tissue", organ_col):
             if required in obs_keys and required not in export_cols:
                 export_cols.append(required)
-
-        mode = spec.output.mode
-        logger.info(f"Output mode: {mode}")
 
         # Execute based on output mode
         if mode == "anndata":
@@ -719,7 +740,11 @@ The YAML configuration file should specify:
         spec = load_query_spec_yaml(args.config)
         result = run_query(spec)
 
-        if isinstance(result, pd.DataFrame):
+        if isinstance(result, list):
+            print(f"\nFound {len(result)} unique dataset(s):")
+            for ds_id in result:
+                print(f"  {ds_id}")
+        elif isinstance(result, pd.DataFrame):
             print(f"\nQuery returned DataFrame with {len(result):,} rows")
             print(f"Columns: {list(result.columns)}")
             print(f"\nFirst 5 rows:\n{result.head()}")

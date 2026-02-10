@@ -636,9 +636,78 @@ class TestIntegration:
 # =============================================================================
 # Edge Cases and Error Handling
 # =============================================================================
+class TestDatasetListMode:
+    """Tests for the dataset_list output mode."""
+
+    def test_returns_unique_sorted_ids(self, mock_census):
+        """Test that dataset_list mode returns sorted unique dataset IDs."""
+        # Mock obs.read to return duplicate dataset_id values
+        mock_exp = mock_census["census_data"]["homo_sapiens"]
+        obs_df = pd.DataFrame({"dataset_id": ["ds_b", "ds_a", "ds_b", "ds_c", "ds_a"]})
+        mock_exp.obs.read.return_value.concat.return_value.to_pandas.return_value = obs_df
+
+        spec = QuerySpec(output=OutputSpec(mode="dataset_list"))
+
+        with patch("census_query.cxc.open_soma") as mock_open:
+            mock_open.return_value.__enter__.return_value = mock_census
+            result = run_query(spec)
+
+        assert result == ["ds_a", "ds_b", "ds_c"]
+
+    def test_queries_only_dataset_id_column(self, mock_census):
+        """Test that only the dataset_id column is requested for efficiency."""
+        mock_exp = mock_census["census_data"]["homo_sapiens"]
+        obs_df = pd.DataFrame({"dataset_id": ["ds_a"]})
+        mock_exp.obs.read.return_value.concat.return_value.to_pandas.return_value = obs_df
+
+        spec = QuerySpec(output=OutputSpec(mode="dataset_list"))
+
+        with patch("census_query.cxc.open_soma") as mock_open:
+            mock_open.return_value.__enter__.return_value = mock_census
+            run_query(spec)
+
+        mock_exp.obs.read.assert_called_once()
+        call_kwargs = mock_exp.obs.read.call_args
+        assert call_kwargs.kwargs.get("column_names") == ["dataset_id"]
+
+    def test_writes_to_file_when_outpath_set(self, mock_census, tmp_path):
+        """Test that dataset list is written to a file when outpath is provided."""
+        mock_exp = mock_census["census_data"]["homo_sapiens"]
+        obs_df = pd.DataFrame({"dataset_id": ["ds_b", "ds_a", "ds_b"]})
+        mock_exp.obs.read.return_value.concat.return_value.to_pandas.return_value = obs_df
+
+        outpath = tmp_path / "datasets.txt"
+        spec = QuerySpec(
+            output=OutputSpec(mode="dataset_list", outpath=str(outpath)),
+        )
+
+        with patch("census_query.cxc.open_soma") as mock_open:
+            mock_open.return_value.__enter__.return_value = mock_census
+            result = run_query(spec)
+
+        assert result == ["ds_a", "ds_b"]
+        assert outpath.exists()
+        lines = outpath.read_text().strip().split("\n")
+        assert lines == ["ds_a", "ds_b"]
+
+    def test_returns_empty_list_when_no_matches(self, mock_census):
+        """Test that an empty list is returned when no cells match."""
+        mock_exp = mock_census["census_data"]["homo_sapiens"]
+        obs_df = pd.DataFrame({"dataset_id": pd.Series([], dtype=str)})
+        mock_exp.obs.read.return_value.concat.return_value.to_pandas.return_value = obs_df
+
+        spec = QuerySpec(output=OutputSpec(mode="dataset_list"))
+
+        with patch("census_query.cxc.open_soma") as mock_open:
+            mock_open.return_value.__enter__.return_value = mock_census
+            result = run_query(spec)
+
+        assert result == []
+
+
 class TestEdgeCases:
     """Tests for edge cases and error handling."""
-    
+
     def test_invalid_output_mode(self, mock_census):
         """Test error for invalid output mode."""
         spec = QuerySpec(
