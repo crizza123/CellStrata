@@ -51,6 +51,7 @@ class OutputSpec:
     mode: str = "pandas"
     outpath: Optional[str] = None
     overwrite: bool = True
+    parquet_compression: str = "zstd"
 
 @dataclass(frozen=True)
 class QuerySpec:
