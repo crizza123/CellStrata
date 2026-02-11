@@ -1,7 +1,7 @@
 # CellStrata
 BIOINF 576 Project - CellStrata
 
-**Introduction**:
+**Introduction** :
 Mast Cells are a heterogeneous type of immune cell important for our bodies defense against parasites and are also implicated in autoimmune and allergic diseases. Mast Cell phenotype varies based on the anatomical niche. For example, Mast Cells residing in the connective tissues of the Skin, Muscle, and Heart express the protease chymase whereas mast cells residing at the mucosal surfaces of the intestine and lung do not. Furthermore, studies suggest that there are multiple mast cell phenotypes within one particular tissue hinting at functional differences between observable phenotypes. 
 
 Due to the rarity of human tissue specimens derived from healthy donors our understanding of mast cell phenotype in homeostasis and disease is lacking. To this end, a wrapper tool that can download data from online repositories and identify a given cell type based on key marker genes would help to better understand heterogeneity in mast cell phenotype. Such a tool could also be generalized and used to stratify other cell types in an identical fashion. 
