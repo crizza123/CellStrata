@@ -45,12 +45,15 @@ def _get_summary_cell_counts(census) -> pd.DataFrame:
     Returns:
         DataFrame with category, label, and ontology_term_id columns.
     """
-    return (
+    logger.info("Reading summary_cell_counts from Census...")
+    result = (
         census["census_info"]["summary_cell_counts"]
         .read(column_names=["category", "label", "ontology_term_id"])
         .concat()
         .to_pandas()
     )
+    logger.info(f"Loaded {len(result):,} summary rows")
+    return result
 
 
 def resolve_ontology_term_ids(
