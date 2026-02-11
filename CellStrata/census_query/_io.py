@@ -147,3 +147,41 @@ def write_parquet_stream(
             writer.close()
 
     return rows, batches
+
+
+def write_parquet_parts(
+    tables: Iterable[pa.Table],
+    outdir: Path,
+    compression: str = "zstd",
+    log_every_n: int = 10,
+) -> Tuple[int, int]:
+    """
+    Write an iterable of Arrow Tables to a directory of Parquet part files.
+
+    Each non-empty table is written as a separate file named
+    ``part-00000.parquet``, ``part-00001.parquet``, etc.
+
+    Args:
+        tables: Iterable of Arrow Tables (e.g. from stream_obs_tables).
+        outdir: Target directory for part files. Created if it does not exist.
+        compression: Parquet compression codec.
+        log_every_n: Log progress every N parts written.
+
+    Returns:
+        Tuple of (rows_written, parts_written).
+    """
+    outdir.mkdir(parents=True, exist_ok=True)
+    rows = 0
+    parts = 0
+
+    for tbl in tables:
+        if tbl.num_rows == 0:
+            continue
+        part_path = outdir / f"part-{parts:05d}.parquet"
+        pq.write_table(tbl, str(part_path), compression=compression)
+        rows += tbl.num_rows
+        parts += 1
+        if log_every_n and parts % log_every_n == 0:
+            logger.info(f"Progress: {parts} parts, {rows:,} rows written")
+
+    return rows, parts

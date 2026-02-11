@@ -32,6 +32,7 @@ from ._io import (
     _resolve_outpath,
     stream_obs_tables,
     write_parquet_stream,
+    write_parquet_parts,
 )
 
 logger = logging.getLogger(__name__)
@@ -50,6 +51,7 @@ def run_query(spec: QuerySpec) -> Union[pd.DataFrame, pa.Table, Any, Path, List[
         - "arrow": Arrow Table
         - "anndata": AnnData object
         - "parquet": Path to output Parquet file
+        - "parquet_dir": Path to output directory of Parquet part files
         - "dataset_list": sorted list of unique dataset ID strings
 
     Raises:
@@ -159,6 +161,22 @@ def run_query(spec: QuerySpec) -> Union[pd.DataFrame, pa.Table, Any, Path, List[
             )
             logger.info(f"Wrote Parquet: {rows:,} rows in {batches} batches to {outpath}")
             return outpath
+
+        if mode == "parquet_dir":
+            if not spec.output.outpath:
+                raise ValueError("output.outpath is required for mode='parquet_dir'")
+            outdir = Path(spec.output.outpath)
+
+            tables = stream_obs_tables(
+                exp, value_filter=value_filter, column_names=export_cols
+            )
+            rows, parts = write_parquet_parts(
+                tables, outdir, compression=spec.output.parquet_compression
+            )
+            logger.info(
+                f"Wrote Parquet directory: {rows:,} rows in {parts} parts to {outdir}"
+            )
+            return outdir
 
         raise ValueError(f"Unknown output mode: {mode}")
 

@@ -50,6 +50,7 @@ from census_query import (
     _resolve_outpath,
     stream_obs_tables,
     write_parquet_stream,
+    write_parquet_parts,
     run_query,
     # Visualization functions
     plot_cell_type_counts,
@@ -748,6 +749,130 @@ class TestWriteParquetStream:
         write_parquet_stream([table], outpath, compression="snappy")
 
         assert outpath.exists()
+
+
+class TestWriteParquetParts:
+    """Tests for write_parquet_parts function (directory export)."""
+
+    def test_write_single_table(self, tmp_path):
+        """Test writing a single Arrow table as one part file."""
+        outdir = tmp_path / "parts"
+        table = pa.table({"col1": [1, 2, 3], "col2": ["a", "b", "c"]})
+
+        rows, parts = write_parquet_parts([table], outdir)
+
+        assert rows == 3
+        assert parts == 1
+        assert (outdir / "part-00000.parquet").exists()
+
+    def test_write_multiple_tables(self, tmp_path):
+        """Test writing multiple Arrow tables as separate part files."""
+        outdir = tmp_path / "parts"
+        tables = [
+            pa.table({"col1": [1, 2], "col2": ["a", "b"]}),
+            pa.table({"col1": [3, 4], "col2": ["c", "d"]}),
+            pa.table({"col1": [5], "col2": ["e"]}),
+        ]
+
+        rows, parts = write_parquet_parts(tables, outdir)
+
+        assert rows == 5
+        assert parts == 3
+        for i in range(3):
+            assert (outdir / f"part-{i:05d}.parquet").exists()
+
+    def test_skip_empty_tables(self, tmp_path):
+        """Test that empty tables are skipped and don't create part files."""
+        outdir = tmp_path / "parts"
+        tables = [
+            pa.table({"col1": pa.array([], type=pa.int64())}),
+            pa.table({"col1": [1, 2]}),
+            pa.table({"col1": pa.array([], type=pa.int64())}),
+            pa.table({"col1": [3]}),
+        ]
+
+        rows, parts = write_parquet_parts(tables, outdir)
+
+        assert rows == 3
+        assert parts == 2
+        assert (outdir / "part-00000.parquet").exists()
+        assert (outdir / "part-00001.parquet").exists()
+        assert not (outdir / "part-00002.parquet").exists()
+
+    def test_creates_output_directory(self, tmp_path):
+        """Test that the output directory is created if it doesn't exist."""
+        outdir = tmp_path / "nested" / "parts"
+        table = pa.table({"col1": [1]})
+
+        write_parquet_parts([table], outdir)
+
+        assert outdir.exists()
+        assert outdir.is_dir()
+
+    def test_part_files_are_readable(self, tmp_path):
+        """Test that written part files can be read back."""
+        import pyarrow.parquet as pq_read
+
+        outdir = tmp_path / "parts"
+        table = pa.table({"col1": [10, 20], "col2": ["x", "y"]})
+
+        write_parquet_parts([table], outdir)
+
+        result = pq_read.read_table(outdir / "part-00000.parquet")
+        assert result.num_rows == 2
+        assert result.column_names == ["col1", "col2"]
+
+    def test_compression_option(self, tmp_path):
+        """Test different compression options."""
+        outdir = tmp_path / "parts"
+        table = pa.table({"col1": [1, 2, 3]})
+
+        rows, parts = write_parquet_parts([table], outdir, compression="snappy")
+
+        assert rows == 3
+        assert parts == 1
+
+
+class TestParquetDirMode:
+    """Tests for the parquet_dir output mode in run_query."""
+
+    def test_parquet_dir_mode_without_outpath(self, mock_census):
+        """Test error when parquet_dir mode lacks outpath."""
+        spec = QuerySpec(
+            obs_columns=["dataset_id", "cell_type"],
+            output=OutputSpec(mode="parquet_dir", outpath=None),
+        )
+
+        with patch("census_query._runner.cxc.open_soma") as mock_open:
+            mock_open.return_value.__enter__.return_value = mock_census
+            with pytest.raises(ValueError, match="outpath is required"):
+                run_query(spec)
+
+    def test_parquet_dir_mode_writes_parts(self, mock_census, tmp_path):
+        """Test that parquet_dir mode writes part files to a directory."""
+        mock_exp = mock_census["census_data"]["homo_sapiens"]
+        batch1 = pa.record_batch(
+            {"dataset_id": ["ds_a", "ds_b"], "cell_type": ["B cell", "T cell"]}
+        )
+        batch2 = pa.record_batch(
+            {"dataset_id": ["ds_c"], "cell_type": ["mast cell"]}
+        )
+        mock_exp.obs.read.return_value = iter([batch1, batch2])
+
+        outdir = tmp_path / "export_parts"
+        spec = QuerySpec(
+            obs_columns=["dataset_id", "cell_type"],
+            output=OutputSpec(mode="parquet_dir", outpath=str(outdir)),
+        )
+
+        with patch("census_query._runner.cxc.open_soma") as mock_open:
+            mock_open.return_value.__enter__.return_value = mock_census
+            result = run_query(spec)
+
+        assert result == outdir
+        assert outdir.is_dir()
+        assert (outdir / "part-00000.parquet").exists()
+        assert (outdir / "part-00001.parquet").exists()
 
 
 # =============================================================================
