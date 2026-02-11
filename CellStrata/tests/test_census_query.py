@@ -9,6 +9,7 @@ This test suite covers:
 - YAML loading and validation
 - Filter building logic
 - Helper functions
+- I/O utilities (Arrow/Parquet streaming)
 - Visualization functions
 - Integration tests (requires network access)
 
@@ -26,6 +27,7 @@ matplotlib.use("Agg")  # non-interactive backend for CI
 import matplotlib.pyplot as plt
 
 import pandas as pd
+import pyarrow as pa
 import pytest
 import yaml
 
@@ -45,6 +47,9 @@ from census_query import (
     choose_organ_column,
     build_obs_value_filter,
     resolve_ontology_term_ids,
+    _resolve_outpath,
+    stream_obs_tables,
+    write_parquet_stream,
     run_query,
     # Visualization functions
     plot_cell_type_counts,
@@ -234,6 +239,19 @@ class TestOutputSpec:
         assert output.mode == "pandas"
         assert output.outpath is None
         assert output.overwrite is True
+
+    def test_parquet_mode(self):
+        """Test Parquet output configuration."""
+        output = OutputSpec(
+            mode="parquet",
+            outpath="/tmp/output.parquet",
+            overwrite=True,
+            parquet_compression="snappy",
+        )
+        assert output.mode == "parquet"
+        assert output.outpath == "/tmp/output.parquet"
+        assert output.overwrite is True
+        assert output.parquet_compression == "snappy"
 
     def test_dataset_list_mode(self):
         """Test dataset_list output configuration."""
@@ -629,6 +647,19 @@ class TestEdgeCases:
             with pytest.raises(ValueError):
                 run_query(spec)
 
+    def test_parquet_mode_without_outpath(self, mock_census):
+        """Test error when parquet mode lacks outpath."""
+        # Supply obs_columns that exist in mock schema to bypass column check
+        spec = QuerySpec(
+            obs_columns=["dataset_id", "cell_type"],
+            output=OutputSpec(mode="parquet", outpath=None),
+        )
+
+        with patch("census_query._runner.cxc.open_soma") as mock_open:
+            mock_open.return_value.__enter__.return_value = mock_census
+            with pytest.raises(ValueError, match="outpath is required"):
+                run_query(spec)
+
     def test_yaml_with_invalid_syntax(self, tmp_path):
         """Test handling of malformed YAML."""
         config_path = tmp_path / "invalid.yaml"
@@ -637,6 +668,86 @@ class TestEdgeCases:
 
         with pytest.raises(yaml.YAMLError):
             load_query_spec_yaml(config_path)
+
+
+# =============================================================================
+# Unit Tests: I/O Utilities
+# =============================================================================
+class TestResolveOutpath:
+    """Tests for _resolve_outpath function."""
+
+    def test_creates_parent_directory(self, tmp_path):
+        """Test that parent directories are created."""
+        outpath = tmp_path / "subdir" / "output.parquet"
+        result = _resolve_outpath(str(outpath), overwrite=True)
+
+        assert result.parent.exists()
+
+    def test_overwrite_existing_file(self, tmp_path):
+        """Test overwriting an existing file."""
+        outpath = tmp_path / "existing.parquet"
+        outpath.touch()
+
+        result = _resolve_outpath(str(outpath), overwrite=True)
+        assert not outpath.exists()  # File should be deleted
+
+    def test_no_overwrite_raises_error(self, tmp_path):
+        """Test error when file exists and overwrite=False."""
+        outpath = tmp_path / "existing.parquet"
+        outpath.touch()
+
+        with pytest.raises(FileExistsError):
+            _resolve_outpath(str(outpath), overwrite=False)
+
+
+class TestWriteParquetStream:
+    """Tests for write_parquet_stream function."""
+
+    def test_write_single_table(self, tmp_path):
+        """Test writing a single Arrow table."""
+        outpath = tmp_path / "output.parquet"
+        table = pa.table({"col1": [1, 2, 3], "col2": ["a", "b", "c"]})
+
+        rows, batches = write_parquet_stream([table], outpath)
+
+        assert rows == 3
+        assert batches == 1
+        assert outpath.exists()
+
+    def test_write_multiple_tables(self, tmp_path):
+        """Test writing multiple Arrow tables."""
+        outpath = tmp_path / "output.parquet"
+        tables = [
+            pa.table({"col1": [1, 2], "col2": ["a", "b"]}),
+            pa.table({"col1": [3, 4], "col2": ["c", "d"]}),
+        ]
+
+        rows, batches = write_parquet_stream(tables, outpath)
+
+        assert rows == 4
+        assert batches == 2
+
+    def test_skip_empty_tables(self, tmp_path):
+        """Test that empty tables are skipped."""
+        outpath = tmp_path / "output.parquet"
+        tables = [
+            pa.table({"col1": [], "col2": []}),
+            pa.table({"col1": [1], "col2": ["a"]}),
+        ]
+
+        rows, batches = write_parquet_stream(tables, outpath)
+
+        assert rows == 1
+        assert batches == 1
+
+    def test_compression_option(self, tmp_path):
+        """Test different compression options."""
+        outpath = tmp_path / "output.parquet"
+        table = pa.table({"col1": [1, 2, 3]})
+
+        write_parquet_stream([table], outpath, compression="snappy")
+
+        assert outpath.exists()
 
 
 # =============================================================================
@@ -833,6 +944,20 @@ class TestIntegration:
         assert isinstance(result, pd.DataFrame)
         assert len(result) > 0
         assert "cell_type" in result.columns
+
+    @pytest.mark.skip(reason="Requires network access to CELLxGENE Census")
+    def test_full_query_arrow(self, integration_config, tmp_path):
+        """Test a full query returning Arrow Table."""
+        spec = load_query_spec_yaml(integration_config)
+        spec = QuerySpec(
+            target=spec.target,
+            obs_filters=spec.obs_filters,
+            output=OutputSpec(mode="arrow"),
+        )
+        result = run_query(spec)
+
+        assert isinstance(result, pa.Table)
+        assert result.num_rows > 0
 
 
 # =============================================================================

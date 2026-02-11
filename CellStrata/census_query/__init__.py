@@ -7,13 +7,15 @@ This package provides functionality to query and download single-cell RNA-seq
 data from the CELLxGENE Census database. It supports:
   - YAML configuration for reproducible queries
   - Label-to-ontology-term-id resolution
-  - Multiple output formats: pandas DataFrame, AnnData
+  - Multiple output formats: pandas DataFrame, Arrow Table, Parquet, AnnData
+  - Streaming Arrow/Parquet I/O for large queries
   - Metadata visualization with matplotlib/seaborn
   - TileDB context tuning for S3 timeout mitigation
 
 Sub-modules:
     _schema:     Constants, configuration dataclasses, YAML loading
     _filters:    Filter building and ontology term resolution
+    _io:         Streaming I/O, Arrow/Parquet writing, TileDB context
     _runner:     Query orchestration and CLI entry point
     _visualize:  Metadata plotting functions
 
@@ -56,6 +58,13 @@ from ._filters import (
     build_obs_export_columns,
 )
 
+# --- I/O: streaming, Arrow/Parquet, TileDB context ---
+from ._io import (
+    _resolve_outpath,
+    stream_obs_tables,
+    write_parquet_stream,
+)
+
 # --- Runner: query orchestration and CLI ---
 from ._runner import run_query, main
 
@@ -89,6 +98,10 @@ __all__ = [
     "choose_organ_column",
     "build_obs_value_filter",
     "build_obs_export_columns",
+    # I/O
+    "_resolve_outpath",
+    "stream_obs_tables",
+    "write_parquet_stream",
     # Runner
     "run_query",
     "main",

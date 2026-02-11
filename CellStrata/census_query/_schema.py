@@ -103,9 +103,10 @@ class ObsFilters:
 @dataclass(frozen=True)
 class OutputSpec:
     """Output specification."""
-    mode: Literal["pandas", "anndata", "dataset_list"] = "pandas"
+    mode: Literal["pandas", "arrow", "anndata", "parquet", "dataset_list"] = "pandas"
     outpath: Optional[str] = None
     overwrite: bool = True
+    parquet_compression: str = "zstd"
 
 
 @dataclass(frozen=True)
