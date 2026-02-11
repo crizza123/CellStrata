@@ -648,7 +648,7 @@ class TestDatasetListMode:
 
         spec = QuerySpec(output=OutputSpec(mode="dataset_list"))
 
-        with patch("census_query.cxc.open_soma") as mock_open:
+        with patch("census_query._runner.cxc.open_soma") as mock_open:
             mock_open.return_value.__enter__.return_value = mock_census
             result = run_query(spec)
 
@@ -662,7 +662,7 @@ class TestDatasetListMode:
 
         spec = QuerySpec(output=OutputSpec(mode="dataset_list"))
 
-        with patch("census_query.cxc.open_soma") as mock_open:
+        with patch("census_query._runner.cxc.open_soma") as mock_open:
             mock_open.return_value.__enter__.return_value = mock_census
             run_query(spec)
 
@@ -681,7 +681,7 @@ class TestDatasetListMode:
             output=OutputSpec(mode="dataset_list", outpath=str(outpath)),
         )
 
-        with patch("census_query.cxc.open_soma") as mock_open:
+        with patch("census_query._runner.cxc.open_soma") as mock_open:
             mock_open.return_value.__enter__.return_value = mock_census
             result = run_query(spec)
 
@@ -698,7 +698,7 @@ class TestDatasetListMode:
 
         spec = QuerySpec(output=OutputSpec(mode="dataset_list"))
 
-        with patch("census_query.cxc.open_soma") as mock_open:
+        with patch("census_query._runner.cxc.open_soma") as mock_open:
             mock_open.return_value.__enter__.return_value = mock_census
             result = run_query(spec)
 
@@ -714,7 +714,7 @@ class TestEdgeCases:
             output=OutputSpec(mode="invalid_mode"),  # type: ignore
         )
         
-        with patch("census_query.cxc.open_soma") as mock_open:
+        with patch("census_query._runner.cxc.open_soma") as mock_open:
             mock_open.return_value.__enter__.return_value = mock_census
             with pytest.raises(ValueError, match="Unknown output mode"):
                 run_query(spec)
@@ -725,7 +725,7 @@ class TestEdgeCases:
             output=OutputSpec(mode="parquet", outpath=None),
         )
         
-        with patch("census_query.cxc.open_soma") as mock_open:
+        with patch("census_query._runner.cxc.open_soma") as mock_open:
             mock_open.return_value.__enter__.return_value = mock_census
             with pytest.raises(ValueError, match="outpath is required"):
                 run_query(spec)
