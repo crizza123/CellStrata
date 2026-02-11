@@ -66,23 +66,40 @@ def _resolve_outpath(outpath: str, overwrite: bool) -> Path:
     return p
 
 
+_DEFAULT_S3_CONFIG: Dict[str, Any] = {
+    "vfs.s3.connect_timeout_ms": 60_000,       # 60 s connect timeout
+    "vfs.s3.request_timeout_ms": 600_000,       # 10 min request timeout
+    "vfs.s3.connect_max_tries": 5,              # retry up to 5 times
+    "vfs.s3.connect_scale_factor": 25,          # exponential backoff factor
+}
+
+
 def _make_soma_context(tiledb_config: Dict[str, Any]):
     """
     Create a SOMATileDBContext for tuning S3 timeouts/retries.
 
+    Applies sensible default S3 timeout settings even when no user config
+    is provided, to prevent stalls on slow or congested S3 connections.
+
     Args:
-        tiledb_config: TileDB configuration dictionary.
+        tiledb_config: TileDB configuration dictionary (user overrides).
 
     Returns:
-        SOMATileDBContext or None if not needed/available.
+        SOMATileDBContext, or None if tiledbsoma is not available.
     """
-    if not tiledb_config:
-        return None
     if soma is None:
-        raise RuntimeError(
-            "tiledbsoma is not importable, but tiledb_config was provided."
-        )
-    return soma.SOMATileDBContext(tiledb_config=tiledb_config)
+        if tiledb_config:
+            raise RuntimeError(
+                "tiledbsoma is not importable, but tiledb_config was provided."
+            )
+        return None
+
+    merged = dict(_DEFAULT_S3_CONFIG)
+    if tiledb_config:
+        merged.update(tiledb_config)
+
+    logger.info("TileDB context: %s", {k: v for k, v in merged.items()})
+    return soma.SOMATileDBContext(tiledb_config=merged)
 
 
 def stream_obs_tables(

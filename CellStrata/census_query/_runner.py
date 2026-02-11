@@ -63,10 +63,13 @@ def run_query(spec: QuerySpec) -> Union[pd.DataFrame, pa.Table, Any, Path, List[
     context = _make_soma_context(spec.tiledb_config)
 
     with cxc.open_soma(census_version=spec.target.census_version, context=context) as census:
+        logger.info("Census connection open. Reading experiment schema...")
         exp = census["census_data"][spec.target.organism]
         obs_keys = list(exp.obs.keys())
+        logger.info(f"Experiment obs schema: {len(obs_keys)} columns available")
 
         # Build the value filter
+        logger.info("Resolving ontology labels and building value filter...")
         value_filter = build_obs_value_filter(census, spec.obs_filters)
         logger.info(f"Value filter: {value_filter}")
 
@@ -75,6 +78,7 @@ def run_query(spec: QuerySpec) -> Union[pd.DataFrame, pa.Table, Any, Path, List[
 
         # dataset_list mode only needs dataset_id — skip column/organ setup
         if mode == "dataset_list":
+            logger.info("Querying Census for dataset IDs (streaming)...")
             df = (
                 exp.obs.read(
                     value_filter=value_filter or None,
@@ -107,6 +111,8 @@ def run_query(spec: QuerySpec) -> Union[pd.DataFrame, pa.Table, Any, Path, List[
             if required in obs_keys and required not in export_cols:
                 export_cols.append(required)
 
+        logger.info(f"Export columns ({len(export_cols)}): {export_cols}")
+
         # Execute based on output mode
         if mode == "anndata":
             column_names = {"obs": export_cols}
@@ -119,6 +125,7 @@ def run_query(spec: QuerySpec) -> Union[pd.DataFrame, pa.Table, Any, Path, List[
                 else "Mus musculus"
             )
 
+            logger.info("Downloading AnnData from Census (this may take a while)...")
             adata = cxc.get_anndata(
                 census=census,
                 organism=organism_name,
@@ -130,6 +137,7 @@ def run_query(spec: QuerySpec) -> Union[pd.DataFrame, pa.Table, Any, Path, List[
             return adata
 
         if mode == "pandas":
+            logger.info("Streaming obs metadata from Census...")
             df = (
                 exp.obs.read(value_filter=value_filter or None, column_names=export_cols)
                 .concat()
@@ -139,6 +147,7 @@ def run_query(spec: QuerySpec) -> Union[pd.DataFrame, pa.Table, Any, Path, List[
             return df
 
         if mode == "arrow":
+            logger.info("Streaming Arrow tables from Census...")
             tables = list(
                 stream_obs_tables(exp, value_filter=value_filter, column_names=export_cols)
             )
@@ -152,6 +161,7 @@ def run_query(spec: QuerySpec) -> Union[pd.DataFrame, pa.Table, Any, Path, List[
             if not spec.output.outpath:
                 raise ValueError("output.outpath is required for mode='parquet'")
             outpath = _resolve_outpath(spec.output.outpath, spec.output.overwrite)
+            logger.info(f"Streaming obs to Parquet file: {outpath}")
 
             tables = stream_obs_tables(
                 exp, value_filter=value_filter, column_names=export_cols
@@ -166,6 +176,7 @@ def run_query(spec: QuerySpec) -> Union[pd.DataFrame, pa.Table, Any, Path, List[
             if not spec.output.outpath:
                 raise ValueError("output.outpath is required for mode='parquet_dir'")
             outdir = Path(spec.output.outpath)
+            logger.info(f"Streaming obs to Parquet directory: {outdir}")
 
             tables = stream_obs_tables(
                 exp, value_filter=value_filter, column_names=export_cols
