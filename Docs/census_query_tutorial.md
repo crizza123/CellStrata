@@ -122,7 +122,7 @@ This is useful when you want to parameterize queries in a loop or integrate
 
 ## 3. Output Modes
 
-`census_query` supports five output modes. Set the mode in your YAML config
+`census_query` supports six output modes. Set the mode in your YAML config
 or in `OutputSpec`.
 
 ### 3a. `pandas` — DataFrame for exploration and visualization
@@ -181,7 +181,31 @@ import pyarrow.parquet as pq
 table = pq.read_table(str(outpath))
 ```
 
-### 3d. `anndata` — Expression matrix for single-cell analysis
+### 3d. `parquet_dir` — Batch export to a directory of Parquet part files
+
+Writes each streaming batch as a separate `part-NNNNN.parquet` file in a
+directory. This mirrors the batch-download pattern from the CELLxGENE Census
+examples and is ideal for very large exports where you want to resume or
+process parts independently.
+
+```yaml
+output:
+  mode: parquet_dir
+  outpath: output/lung_mast_cells_parts/
+  parquet_compression: zstd
+```
+
+```python
+outdir = run_query(spec)           # returns Path to the directory
+print(f"Parts written to: {outdir}")
+
+# Read all parts back into a single table
+import pyarrow.parquet as pq
+table = pq.read_table(str(outdir))
+print(f"{table.num_rows:,} rows across {len(list(outdir.glob('*.parquet')))} parts")
+```
+
+### 3e. `anndata` — Expression matrix for single-cell analysis
 
 This is the only mode that downloads **gene expression data**. Returns an
 `AnnData` object ready for use with scanpy.
@@ -209,7 +233,7 @@ sc.tl.umap(adata)
 sc.pl.umap(adata, color="cell_type")
 ```
 
-### 3e. `dataset_list` — Find matching CELLxGENE datasets
+### 3f. `dataset_list` — Find matching CELLxGENE datasets
 
 Returns a sorted list of unique dataset IDs whose cells match your filters.
 Useful when you want to identify which datasets to download from the
@@ -516,7 +540,43 @@ table = pq.read_table(str(outpath))
 print(f"{table.num_rows:,} rows")
 ```
 
-### Example E: Arrow mode for in-memory columnar analysis
+### Example E: Batch export to a directory of Parquet parts
+
+This replicates the batch-download pattern from the `Untitled-1.ipynb`
+notebook. Each streaming batch becomes a separate part file, which is
+useful for very large exports or when you want to process chunks
+independently.
+
+```python
+from census_query import QuerySpec, ObsFilters, OutputSpec, run_query
+
+spec = QuerySpec(
+    obs_filters=ObsFilters(
+        is_primary_data=True,
+        disease_ontology_term_ids=["PATO:0000461"],
+        tissue_general_labels=["lung"],
+        cell_type_labels=["mast cell"],
+    ),
+    output=OutputSpec(
+        mode="parquet_dir",
+        outpath="output/lung_mast_cells_parts",
+        parquet_compression="zstd",
+    ),
+)
+
+outdir = run_query(spec)
+
+# Verify the parts
+parts = sorted(outdir.glob("part-*.parquet"))
+print(f"{len(parts)} part files written to {outdir}")
+
+# Read all parts back as one table
+import pyarrow.parquet as pq
+table = pq.read_table(str(outdir))
+print(f"{table.num_rows:,} total rows")
+```
+
+### Example F: Arrow mode for in-memory columnar analysis
 
 ```python
 from census_query import QuerySpec, ObsFilters, OutputSpec, run_query
@@ -538,7 +598,7 @@ print(f"Arrow Table: {arrow_table.num_rows:,} rows")
 df = arrow_table.to_pandas()
 ```
 
-### Example F: Download expression data for a scanpy pipeline
+### Example G: Download expression data for a scanpy pipeline
 
 ```python
 from census_query import QuerySpec, ObsFilters, OutputSpec, run_query
@@ -567,7 +627,7 @@ sc.pp.log1p(adata)
 sc.pl.dotplot(adata, var_names=["TPSAB1", "TPSB2", "CMA1", "KIT"], groupby="donor_id")
 ```
 
-### Example G: Custom two-panel comparison figure
+### Example H: Custom two-panel comparison figure
 
 ```python
 import matplotlib.pyplot as plt
@@ -596,7 +656,7 @@ fig.tight_layout()
 fig.savefig("lung_mast_cell_overview.png", dpi=150)
 ```
 
-### Example H: Using the filter module independently
+### Example I: Using the filter module independently
 
 Because `census_query` is split into independent sub-modules, you can use
 the filter builder on its own — for example, to inspect what filter string
@@ -667,6 +727,6 @@ functionality:
 ```python
 from census_query._schema import load_query_spec_yaml    # lightweight, no pandas
 from census_query._filters import resolve_ontology_term_ids  # filters only
-from census_query._io import write_parquet_stream         # I/O only
+from census_query._io import write_parquet_stream, write_parquet_parts  # I/O only
 from census_query._visualize import plot_cell_type_counts  # single plot
 ```
