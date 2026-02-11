@@ -1,7 +1,8 @@
 # census_query Tutorial
 
 A practical guide to querying the CELLxGENE Census and visualizing cell
-metadata with CellStrata's `census_query` package.
+metadata with CellStrata's `census_query` package. The running example
+throughout this tutorial is **mast cells in healthy human lung**.
 
 ## Prerequisites
 
@@ -11,7 +12,7 @@ Install the required dependencies:
 pip install -r requirements.txt
 ```
 
-This installs `cellxgene-census`, `pandas`, `anndata`, `scanpy`,
+This installs `cellxgene-census`, `pandas`, `pyarrow`, `anndata`, `scanpy`,
 `matplotlib`, `seaborn`, `pyyaml`, and other dependencies.
 
 ---
@@ -34,8 +35,8 @@ obs_filters:
   is_primary_data: true
   suspension_type: cell
   disease_ontology_term_ids: ["PATO:0000461"]   # healthy/normal
-  assay_labels: ["10x 3' v3"]
-  tissue_general_labels: ["blood"]
+  tissue_general_labels: ["lung"]
+  cell_type_labels: ["mast cell"]
 
 output:
   mode: pandas
@@ -50,14 +51,14 @@ python -m census_query --config my_query.yaml
 Output:
 
 ```
-Query returned DataFrame with 245,893 rows
+Query returned DataFrame with 4,821 rows
 Columns: ['dataset_id', 'donor_id', 'assay', 'cell_type', 'tissue',
           'tissue_general', 'disease', 'development_stage', 'sex',
           'self_reported_ethnicity', 'is_primary_data', 'suspension_type']
 
 First 5 rows:
-                           dataset_id    donor_id      assay cell_type ...
-0  a1b2c3d4-e5f6-...  donor_001  10x 3' v3    T cell ...
+                           dataset_id    donor_id      assay   cell_type ...
+0  1b350d0a-4535-...  donor_001  10x 3' v3  mast cell ...
 ```
 
 Each row is one **cell** from the Census. The CLI prints a summary and the
@@ -103,7 +104,6 @@ spec = QuerySpec(
         is_primary_data=True,
         suspension_type="cell",
         disease_ontology_term_ids=["PATO:0000461"],
-        assay_labels=["10x 3' v3"],
         tissue_general_labels=["lung"],
         cell_type_labels=["mast cell"],
     ),
@@ -122,7 +122,7 @@ This is useful when you want to parameterize queries in a loop or integrate
 
 ## 3. Output Modes
 
-`census_query` supports three output modes. Set the mode in your YAML config
+`census_query` supports five output modes. Set the mode in your YAML config
 or in `OutputSpec`.
 
 ### 3a. `pandas` — DataFrame for exploration and visualization
@@ -140,7 +140,48 @@ df.groupby("cell_type").size()     # cell type counts
 df["donor_id"].nunique()           # number of unique donors
 ```
 
-### 3b. `anndata` — Expression matrix for single-cell analysis
+### 3b. `arrow` — In-memory Arrow Table
+
+Returns a PyArrow Table. Useful for columnar analytics, zero-copy
+interoperability, or feeding into other Arrow-native tools.
+
+```yaml
+output:
+  mode: arrow
+```
+
+```python
+import pyarrow as pa
+
+arrow_table = run_query(spec)      # returns pa.Table
+print(arrow_table.num_rows, arrow_table.schema)
+
+# Convert to pandas when ready
+df = arrow_table.to_pandas()
+```
+
+### 3c. `parquet` — Stream to Parquet file on disk
+
+Writes results directly to a Parquet file without loading all data into
+memory. Ideal for very large queries where the full result would not
+fit in RAM.
+
+```yaml
+output:
+  mode: parquet
+  outpath: output/lung_mast_cells.parquet
+  parquet_compression: zstd     # default; also supports snappy, gzip, etc.
+```
+
+```python
+outpath = run_query(spec)          # returns Path to the written file
+
+# Read back with PyArrow or pandas
+import pyarrow.parquet as pq
+table = pq.read_table(str(outpath))
+```
+
+### 3d. `anndata` — Expression matrix for single-cell analysis
 
 This is the only mode that downloads **gene expression data**. Returns an
 `AnnData` object ready for use with scanpy.
@@ -168,7 +209,7 @@ sc.tl.umap(adata)
 sc.pl.umap(adata, color="cell_type")
 ```
 
-### 3c. `dataset_list` — Find matching CELLxGENE datasets
+### 3e. `dataset_list` — Find matching CELLxGENE datasets
 
 Returns a sorted list of unique dataset IDs whose cells match your filters.
 Useful when you want to identify which datasets to download from the
@@ -243,11 +284,11 @@ layouts:
 ```python
 fig, axes = plt.subplots(1, 3, figsize=(18, 5))
 
-plot_cell_type_counts(df, top_n=10, ax=axes[0])
-plot_tissue_counts(df, ax=axes[1])
-plot_sex_distribution(df, ax=axes[2])
+plot_dataset_contribution(df, top_n=10, ax=axes[0])
+plot_sex_distribution(df, ax=axes[1])
+plot_assay_counts(df, ax=axes[2])
 
-fig.suptitle("My custom metadata overview", fontsize=14)
+fig.suptitle("Lung mast cells — metadata overview", fontsize=14)
 fig.tight_layout()
 fig.savefig("custom_overview.png", dpi=150)
 ```
@@ -369,18 +410,19 @@ obs_filters:
 
 ## 7. Practical Examples
 
-### Example A: Compare mast cells across tissues and visualize
+### Example A: Mast cells in lung — full metadata and visualization
 
 ```python
 from census_query import (
     QuerySpec, ObsFilters, OutputSpec, run_query,
-    plot_cell_type_by_tissue, plot_metadata_summary,
+    plot_metadata_summary,
 )
 
 spec = QuerySpec(
     obs_filters=ObsFilters(
         is_primary_data=True,
         disease_ontology_term_ids=["PATO:0000461"],
+        tissue_general_labels=["lung"],
         cell_type_labels=["mast cell"],
     ),
     output=OutputSpec(mode="pandas"),
@@ -388,17 +430,41 @@ spec = QuerySpec(
 
 df = run_query(spec)
 
-# Quick tabular summary
-print(df.groupby("tissue_general")["donor_id"].agg(
+# Tabular summary
+print(df.groupby("dataset_id")["donor_id"].agg(
     cells="size",
     donors="nunique",
 ).sort_values("cells", ascending=False))
 
 # Visual summary
-fig = plot_metadata_summary(df, save_path="mast_cell_summary.png")
+fig = plot_metadata_summary(df, save_path="mast_cell_lung_summary.png")
 ```
 
-### Example B: Find datasets containing specific cell types
+### Example B: Down-sampled query — single dataset for rapid prototyping
+
+Use `extra_value_filter` to restrict to one known dataset. This is much
+faster for testing and gives you a reproducible, fixed-size slice.
+
+```python
+from census_query import QuerySpec, ObsFilters, OutputSpec, run_query
+
+DATASET_ID = "1b350d0a-4535-4879-beb6-1142f3f94947"
+
+spec = QuerySpec(
+    obs_filters=ObsFilters(
+        is_primary_data=True,
+        suspension_type="cell",
+        extra_value_filter=f"dataset_id == '{DATASET_ID}'",
+    ),
+    output=OutputSpec(mode="pandas"),
+)
+
+df_ds = run_query(spec)
+print(f"{len(df_ds):,} cells from dataset {DATASET_ID}")
+print(df_ds["cell_type"].value_counts().head(10))
+```
+
+### Example C: Find datasets containing lung mast cells
 
 ```python
 from census_query import QuerySpec, ObsFilters, OutputSpec, run_query
@@ -422,7 +488,57 @@ for ds_id in dataset_ids:
     print(f"  {ds_id}")
 ```
 
-### Example C: Download expression data for a scanpy pipeline
+### Example D: Stream to Parquet for large-scale queries
+
+```python
+from census_query import QuerySpec, ObsFilters, OutputSpec, run_query
+
+spec = QuerySpec(
+    obs_filters=ObsFilters(
+        is_primary_data=True,
+        disease_ontology_term_ids=["PATO:0000461"],
+        tissue_general_labels=["lung"],
+        cell_type_labels=["mast cell"],
+    ),
+    output=OutputSpec(
+        mode="parquet",
+        outpath="output/lung_mast_cells.parquet",
+        parquet_compression="zstd",
+    ),
+)
+
+outpath = run_query(spec)
+print(f"Parquet written to: {outpath}")
+
+# Read back
+import pyarrow.parquet as pq
+table = pq.read_table(str(outpath))
+print(f"{table.num_rows:,} rows")
+```
+
+### Example E: Arrow mode for in-memory columnar analysis
+
+```python
+from census_query import QuerySpec, ObsFilters, OutputSpec, run_query
+
+spec = QuerySpec(
+    obs_filters=ObsFilters(
+        is_primary_data=True,
+        disease_ontology_term_ids=["PATO:0000461"],
+        tissue_general_labels=["lung"],
+        cell_type_labels=["mast cell"],
+    ),
+    output=OutputSpec(mode="arrow"),
+)
+
+arrow_table = run_query(spec)
+print(f"Arrow Table: {arrow_table.num_rows:,} rows")
+
+# Convert to pandas when needed
+df = arrow_table.to_pandas()
+```
+
+### Example F: Download expression data for a scanpy pipeline
 
 ```python
 from census_query import QuerySpec, ObsFilters, OutputSpec, run_query
@@ -451,13 +567,13 @@ sc.pp.log1p(adata)
 sc.pl.dotplot(adata, var_names=["TPSAB1", "TPSB2", "CMA1", "KIT"], groupby="donor_id")
 ```
 
-### Example D: Custom two-panel comparison figure
+### Example G: Custom two-panel comparison figure
 
 ```python
 import matplotlib.pyplot as plt
 from census_query import (
     QuerySpec, ObsFilters, OutputSpec, run_query,
-    plot_cell_type_counts, plot_donors_per_dataset,
+    plot_dataset_contribution, plot_donors_per_dataset,
 )
 
 spec = QuerySpec(
@@ -465,6 +581,7 @@ spec = QuerySpec(
         is_primary_data=True,
         disease_ontology_term_ids=["PATO:0000461"],
         tissue_general_labels=["lung"],
+        cell_type_labels=["mast cell"],
     ),
     output=OutputSpec(mode="pandas"),
 )
@@ -472,14 +589,14 @@ spec = QuerySpec(
 df = run_query(spec)
 
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
-plot_cell_type_counts(df, top_n=10, ax=ax1)
+plot_dataset_contribution(df, top_n=10, ax=ax1)
 plot_donors_per_dataset(df, top_n=10, ax=ax2)
-fig.suptitle("Healthy lung: cell types and donor coverage")
+fig.suptitle("Healthy lung mast cells: datasets and donor coverage")
 fig.tight_layout()
-fig.savefig("lung_overview.png", dpi=150)
+fig.savefig("lung_mast_cell_overview.png", dpi=150)
 ```
 
-### Example E: Using the filter module independently
+### Example H: Using the filter module independently
 
 Because `census_query` is split into independent sub-modules, you can use
 the filter builder on its own — for example, to inspect what filter string
@@ -493,7 +610,7 @@ from census_query import ObsFilters
 filters = ObsFilters(
     is_primary_data=True,
     disease_ontology_term_ids=["PATO:0000461"],
-    assay_labels=["10x 3' v3"],
+    tissue_general_labels=["lung"],
     cell_type_labels=["mast cell"],
 )
 
@@ -502,7 +619,7 @@ with cxc.open_soma() as census:
     print(filter_string)
     # is_primary_data == True and suspension_type == 'cell'
     #   and disease_ontology_term_id in ['PATO:0000461']
-    #   and assay_ontology_term_id in ['EFO:0009922']
+    #   and tissue_general_ontology_term_id in ['UBERON:0002048']
     #   and cell_type_ontology_term_id in ['CL:0000097']
 ```
 
@@ -533,6 +650,7 @@ census_query/
   __main__.py       # CLI entry point (python -m census_query)
   _schema.py        # dataclasses, constants, YAML loading
   _filters.py       # filter building, ontology resolution
+  _io.py            # Arrow/Parquet streaming, TileDB context
   _runner.py        # run_query() orchestrator, CLI main()
   _visualize.py     # metadata plotting (matplotlib/seaborn)
 ```
@@ -549,5 +667,6 @@ functionality:
 ```python
 from census_query._schema import load_query_spec_yaml    # lightweight, no pandas
 from census_query._filters import resolve_ontology_term_ids  # filters only
+from census_query._io import write_parquet_stream         # I/O only
 from census_query._visualize import plot_cell_type_counts  # single plot
 ```
