@@ -103,10 +103,9 @@ class ObsFilters:
 @dataclass(frozen=True)
 class OutputSpec:
     """Output specification."""
-    mode: Literal["pandas", "arrow", "anndata", "parquet", "dataset_list"] = "pandas"
+    mode: Literal["pandas", "anndata", "dataset_list"] = "pandas"
     outpath: Optional[str] = None
     overwrite: bool = True
-    parquet_compression: str = "zstd"
 
 
 @dataclass(frozen=True)
@@ -153,11 +152,15 @@ def load_query_spec_yaml(path: Union[str, Path]) -> QuerySpec:
     logger.info(f"Loading query specification from: {path}")
 
     with path.open("r", encoding="utf-8") as f:
-        raw = yaml.safe_load(f)
+        raw = yaml.safe_load(f) or {}
 
     target = CensusTarget(**raw.get("target", {}))
     obs_filters = ObsFilters(**raw.get("obs_filters", {}))
-    output = OutputSpec(**raw.get("output", {}))
+
+    # Filter output keys to those accepted by OutputSpec (ignore removed fields)
+    output_raw = raw.get("output", {})
+    output_fields = {f.name for f in OutputSpec.__dataclass_fields__.values()}
+    output = OutputSpec(**{k: v for k, v in output_raw.items() if k in output_fields})
 
     return QuerySpec(
         target=target,

@@ -7,15 +7,15 @@ This package provides functionality to query and download single-cell RNA-seq
 data from the CELLxGENE Census database. It supports:
   - YAML configuration for reproducible queries
   - Label-to-ontology-term-id resolution
-  - Multiple output formats: pandas DataFrame, Arrow Table, AnnData, Parquet
-  - Streaming large queries to avoid OOM errors
+  - Multiple output formats: pandas DataFrame, AnnData
+  - Metadata visualization with matplotlib/seaborn
   - TileDB context tuning for S3 timeout mitigation
 
 Sub-modules:
-    _schema:   Constants, configuration dataclasses, YAML loading
-    _filters:  Filter building and ontology term resolution
-    _io:       I/O utilities, streaming, file management
-    _runner:   Query orchestration and CLI entry point
+    _schema:     Constants, configuration dataclasses, YAML loading
+    _filters:    Filter building and ontology term resolution
+    _runner:     Query orchestration and CLI entry point
+    _visualize:  Metadata plotting functions
 
 Usage:
     from census_query import load_query_spec_yaml, run_query
@@ -56,15 +56,22 @@ from ._filters import (
     build_obs_export_columns,
 )
 
-# --- I/O: streaming, file management, TileDB context ---
-from ._io import (
-    _resolve_outpath,
-    stream_obs_tables,
-    write_parquet_stream,
-)
-
 # --- Runner: query orchestration and CLI ---
 from ._runner import run_query, main
+
+# --- Visualization: metadata plotting ---
+from ._visualize import (
+    plot_cell_type_counts,
+    plot_tissue_counts,
+    plot_sex_distribution,
+    plot_assay_counts,
+    plot_disease_counts,
+    plot_dataset_contribution,
+    plot_development_stage_counts,
+    plot_donors_per_dataset,
+    plot_cell_type_by_tissue,
+    plot_metadata_summary,
+)
 
 __all__ = [
     # Dataclasses
@@ -82,10 +89,18 @@ __all__ = [
     "choose_organ_column",
     "build_obs_value_filter",
     "build_obs_export_columns",
-    # I/O
-    "stream_obs_tables",
-    "write_parquet_stream",
     # Runner
     "run_query",
     "main",
+    # Visualization
+    "plot_cell_type_counts",
+    "plot_tissue_counts",
+    "plot_sex_distribution",
+    "plot_assay_counts",
+    "plot_disease_counts",
+    "plot_dataset_contribution",
+    "plot_development_stage_counts",
+    "plot_donors_per_dataset",
+    "plot_cell_type_by_tissue",
+    "plot_metadata_summary",
 ]

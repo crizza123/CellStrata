@@ -1,7 +1,7 @@
 # census_query Tutorial
 
-A practical guide to querying the CELLxGENE Census with CellStrata's
-`census_query` package.
+A practical guide to querying the CELLxGENE Census and visualizing cell
+metadata with CellStrata's `census_query` package.
 
 ## Prerequisites
 
@@ -11,8 +11,8 @@ Install the required dependencies:
 pip install -r requirements.txt
 ```
 
-This installs `cellxgene-census`, `pandas`, `pyarrow`, `anndata`, `scanpy`,
-`pyyaml`, and other dependencies.
+This installs `cellxgene-census`, `pandas`, `anndata`, `scanpy`,
+`matplotlib`, `seaborn`, `pyyaml`, and other dependencies.
 
 ---
 
@@ -122,12 +122,12 @@ This is useful when you want to parameterize queries in a loop or integrate
 
 ## 3. Output Modes
 
-`census_query` supports five output modes, each suited for different
-downstream workflows. Set the mode in your YAML config or in `OutputSpec`.
+`census_query` supports three output modes. Set the mode in your YAML config
+or in `OutputSpec`.
 
-### 3a. `pandas` — DataFrame for exploration
+### 3a. `pandas` — DataFrame for exploration and visualization
 
-Best for interactive analysis, quick inspection, and small-to-medium queries.
+Best for interactive analysis, quick inspection, and metadata visualization.
 
 ```yaml
 output:
@@ -140,24 +140,7 @@ df.groupby("cell_type").size()     # cell type counts
 df["donor_id"].nunique()           # number of unique donors
 ```
 
-### 3b. `arrow` — Columnar format for large datasets
-
-More memory-efficient than pandas. Good for filtering and transformations
-before converting to pandas.
-
-```yaml
-output:
-  mode: arrow
-```
-
-```python
-table = run_query(spec)            # returns pyarrow.Table
-print(f"{table.num_rows:,} rows, {table.nbytes / 1e6:.1f} MB")
-# Convert a subset to pandas when ready:
-subset = table.filter(table.column("sex") == "female").to_pandas()
-```
-
-### 3c. `anndata` — Expression matrix for single-cell analysis
+### 3b. `anndata` — Expression matrix for single-cell analysis
 
 This is the only mode that downloads **gene expression data**. Returns an
 `AnnData` object ready for use with scanpy.
@@ -185,28 +168,7 @@ sc.tl.umap(adata)
 sc.pl.umap(adata, color="cell_type")
 ```
 
-### 3d. `parquet` — Stream large results to disk
-
-For very large queries that don't fit in memory. Writes results in batches.
-
-```yaml
-output:
-  mode: parquet
-  outpath: output/healthy_cells.parquet
-  parquet_compression: zstd       # or snappy, gzip, none
-  overwrite: true
-```
-
-```python
-outpath = run_query(spec)          # returns Path to the file
-print(f"Written to: {outpath}")
-
-# Read back later:
-import pandas as pd
-df = pd.read_parquet(outpath)
-```
-
-### 3e. `dataset_list` — Find matching CELLxGENE datasets
+### 3c. `dataset_list` — Find matching CELLxGENE datasets
 
 Returns a sorted list of unique dataset IDs whose cells match your filters.
 Useful when you want to identify which datasets to download from the
@@ -225,22 +187,127 @@ for ds_id in dataset_ids:
     print(f"  {ds_id}")
 ```
 
-When `outpath` is set, the IDs are also written to a text file (one per line)
-that can be piped into other tools:
-
-```bash
-# Count matching datasets
-wc -l output/matching_datasets.txt
-
-# Use with another script
-while read ds_id; do
-    echo "Processing dataset: $ds_id"
-done < output/matching_datasets.txt
-```
+When `outpath` is set, the IDs are also written to a text file (one per line).
 
 ---
 
-## 4. Filter Reference
+## 4. Visualizing Metadata
+
+After querying cell metadata in `pandas` mode, use the `_visualize` module
+to explore distributions with publication-ready plots.
+
+### 4a. Individual plots
+
+Every plot function accepts a `pd.DataFrame` and returns a `matplotlib.Axes`,
+so you can compose and customize figures easily.
+
+```python
+from census_query import (
+    run_query,
+    load_query_spec_yaml,
+    plot_cell_type_counts,
+    plot_tissue_counts,
+    plot_sex_distribution,
+    plot_assay_counts,
+    plot_disease_counts,
+    plot_dataset_contribution,
+    plot_development_stage_counts,
+    plot_donors_per_dataset,
+    plot_cell_type_by_tissue,
+)
+import matplotlib.pyplot as plt
+
+# 1. Run a query
+spec = load_query_spec_yaml("config/census_query.yaml")
+df = run_query(spec)
+
+# 2. Plot individual distributions
+plot_cell_type_counts(df, top_n=15)
+plt.tight_layout()
+plt.show()
+
+plot_tissue_counts(df, column="tissue_general")
+plt.tight_layout()
+plt.show()
+
+plot_sex_distribution(df)
+plt.tight_layout()
+plt.show()
+```
+
+### 4b. Composing a custom multi-panel figure
+
+Because every function accepts an `ax` parameter, you can build your own
+layouts:
+
+```python
+fig, axes = plt.subplots(1, 3, figsize=(18, 5))
+
+plot_cell_type_counts(df, top_n=10, ax=axes[0])
+plot_tissue_counts(df, ax=axes[1])
+plot_sex_distribution(df, ax=axes[2])
+
+fig.suptitle("My custom metadata overview", fontsize=14)
+fig.tight_layout()
+fig.savefig("custom_overview.png", dpi=150)
+```
+
+### 4c. Cell-type-by-tissue heatmap
+
+The heatmap shows how cell types distribute across tissues. Colour encodes
+`log10(count + 1)` so rare populations remain visible; cell annotations
+show raw counts.
+
+```python
+plot_cell_type_by_tissue(df, top_cell_types=12, top_tissues=8)
+plt.tight_layout()
+plt.show()
+```
+
+### 4d. One-line summary dashboard
+
+`plot_metadata_summary` creates a 3x2 grid with six panels:
+
+1. Cell type counts
+2. Tissue counts
+3. Sex distribution
+4. Assay distribution
+5. Dataset contribution
+6. Cell-type-by-tissue heatmap
+
+```python
+from census_query import plot_metadata_summary
+
+fig = plot_metadata_summary(df, top_n=15, save_path="figures/summary.png")
+plt.show()
+```
+
+The dashboard title automatically includes the total cell count, unique
+donors, and unique datasets.
+
+---
+
+## 5. Available Plot Functions
+
+| Function | What it shows | Key parameters |
+|---|---|---|
+| `plot_cell_type_counts(df)` | Horizontal bar chart of cell-type frequencies | `top_n`, `ax` |
+| `plot_tissue_counts(df)` | Horizontal bar chart of tissue frequencies | `column`, `top_n`, `ax` |
+| `plot_sex_distribution(df)` | Bar chart of sex distribution | `ax` |
+| `plot_assay_counts(df)` | Bar chart of sequencing assay frequencies | `ax` |
+| `plot_disease_counts(df)` | Horizontal bar chart of disease annotations | `top_n`, `ax` |
+| `plot_dataset_contribution(df)` | Cells per dataset (horizontal bar) | `top_n`, `ax` |
+| `plot_development_stage_counts(df)` | Bar chart of development stages | `top_n`, `ax` |
+| `plot_donors_per_dataset(df)` | Unique donors per dataset (horizontal bar) | `top_n`, `ax` |
+| `plot_cell_type_by_tissue(df)` | Heatmap: cell types vs tissues | `top_cell_types`, `top_tissues`, `tissue_column`, `ax` |
+| `plot_metadata_summary(df)` | 3x2 dashboard combining six panels | `top_n`, `tissue_column`, `save_path`, `dpi` |
+
+All individual functions return `plt.Axes`; `plot_metadata_summary` returns
+`plt.Figure`.
+
+---
+
+## 6. Filter Reference
 
 All filters go under `obs_filters` in the YAML config. You can use
 human-readable **labels** (automatically resolved to ontology term IDs) or
@@ -300,12 +367,15 @@ obs_filters:
 
 ---
 
-## 5. Practical Examples
+## 7. Practical Examples
 
-### Example A: Compare mast cells across tissues
+### Example A: Compare mast cells across tissues and visualize
 
 ```python
-from census_query import QuerySpec, ObsFilters, OutputSpec, run_query
+from census_query import (
+    QuerySpec, ObsFilters, OutputSpec, run_query,
+    plot_cell_type_by_tissue, plot_metadata_summary,
+)
 
 spec = QuerySpec(
     obs_filters=ObsFilters(
@@ -318,40 +388,17 @@ spec = QuerySpec(
 
 df = run_query(spec)
 
-# How many mast cells per tissue?
+# Quick tabular summary
 print(df.groupby("tissue_general")["donor_id"].agg(
     cells="size",
     donors="nunique",
 ).sort_values("cells", ascending=False))
+
+# Visual summary
+fig = plot_metadata_summary(df, save_path="mast_cell_summary.png")
 ```
 
-### Example B: Export healthy lung data to Parquet for later analysis
-
-```yaml
-# lung_export.yaml
-target:
-  census_version: stable
-  organism: homo_sapiens
-
-obs_filters:
-  is_primary_data: true
-  suspension_type: cell
-  disease_ontology_term_ids: ["PATO:0000461"]
-  tissue_general_labels: ["lung"]
-  assay_labels: ["10x 3' v3", "10x 3' v2"]
-
-output:
-  mode: parquet
-  outpath: output/healthy_lung_metadata.parquet
-  overwrite: true
-```
-
-```bash
-python -m census_query --config lung_export.yaml
-# Output: Wrote Parquet: 1,234,567 rows in 25 batches to output/healthy_lung_metadata.parquet
-```
-
-### Example C: Find datasets containing specific cell types
+### Example B: Find datasets containing specific cell types
 
 ```python
 from census_query import QuerySpec, ObsFilters, OutputSpec, run_query
@@ -372,10 +419,10 @@ spec = QuerySpec(
 dataset_ids = run_query(spec)
 print(f"{len(dataset_ids)} datasets have mast cells in healthy lung:")
 for ds_id in dataset_ids:
-    print(f"  https://cellxgene.cziscience.com/e/{ds_id}.cxg/")
+    print(f"  {ds_id}")
 ```
 
-### Example D: Download expression data for a scanpy pipeline
+### Example C: Download expression data for a scanpy pipeline
 
 ```python
 from census_query import QuerySpec, ObsFilters, OutputSpec, run_query
@@ -402,6 +449,34 @@ sc.pp.log1p(adata)
 
 # Visualize marker expression across donors
 sc.pl.dotplot(adata, var_names=["TPSAB1", "TPSB2", "CMA1", "KIT"], groupby="donor_id")
+```
+
+### Example D: Custom two-panel comparison figure
+
+```python
+import matplotlib.pyplot as plt
+from census_query import (
+    QuerySpec, ObsFilters, OutputSpec, run_query,
+    plot_cell_type_counts, plot_donors_per_dataset,
+)
+
+spec = QuerySpec(
+    obs_filters=ObsFilters(
+        is_primary_data=True,
+        disease_ontology_term_ids=["PATO:0000461"],
+        tissue_general_labels=["lung"],
+    ),
+    output=OutputSpec(mode="pandas"),
+)
+
+df = run_query(spec)
+
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
+plot_cell_type_counts(df, top_n=10, ax=ax1)
+plot_donors_per_dataset(df, top_n=10, ax=ax2)
+fig.suptitle("Healthy lung: cell types and donor coverage")
+fig.tight_layout()
+fig.savefig("lung_overview.png", dpi=150)
 ```
 
 ### Example E: Using the filter module independently
@@ -433,7 +508,7 @@ with cxc.open_soma() as census:
 
 ---
 
-## 6. S3 Timeout Tuning
+## 8. S3 Timeout Tuning
 
 Large Census queries can sometimes hit S3 timeouts. Add `tiledb_config` to
 your YAML to mitigate this:
@@ -450,9 +525,7 @@ queries.
 
 ---
 
-## 7. Package Structure
-
-After the recent refactor, `census_query` is organized as a sub-package:
+## 9. Package Structure
 
 ```
 census_query/
@@ -460,14 +533,14 @@ census_query/
   __main__.py       # CLI entry point (python -m census_query)
   _schema.py        # dataclasses, constants, YAML loading
   _filters.py       # filter building, ontology resolution
-  _io.py            # streaming, Parquet writing, TileDB context
   _runner.py        # run_query() orchestrator, CLI main()
+  _visualize.py     # metadata plotting (matplotlib/seaborn)
 ```
 
 You can import from the top-level package for convenience:
 
 ```python
-from census_query import run_query, QuerySpec, ObsFilters
+from census_query import run_query, QuerySpec, plot_metadata_summary
 ```
 
 Or import directly from sub-modules when you only need part of the
@@ -476,4 +549,5 @@ functionality:
 ```python
 from census_query._schema import load_query_spec_yaml    # lightweight, no pandas
 from census_query._filters import resolve_ontology_term_ids  # filters only
+from census_query._visualize import plot_cell_type_counts  # single plot
 ```

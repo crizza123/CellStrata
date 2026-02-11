@@ -1,23 +1,25 @@
 """
 _runner.py - Query orchestration and CLI entry point.
 
-This module ties together _schema, _filters, and _io to execute Census
-queries. It is the only module that imports from all three sub-modules.
+This module ties together _schema, _filters, and _visualize to execute
+Census queries and optionally produce visualizations.
 """
 
 from __future__ import annotations
 
 import argparse
 import logging
+import os
 from pathlib import Path
 from typing import (
     Any,
+    Dict,
     List,
+    Optional,
     Union,
 )
 
 import pandas as pd
-import pyarrow as pa
 
 import cellxgene_census as cxc
 
@@ -27,17 +29,50 @@ from ._filters import (
     build_obs_export_columns,
     choose_organ_column,
 )
-from ._io import (
-    _make_soma_context,
-    _resolve_outpath,
-    stream_obs_tables,
-    write_parquet_stream,
-)
+
+# Optional tiledbsoma for context tuning
+try:
+    import tiledbsoma as soma
+except ImportError:
+    soma = None
 
 logger = logging.getLogger(__name__)
 
 
-def run_query(spec: QuerySpec) -> Union[pd.DataFrame, pa.Table, Any, Path, List[str]]:
+# ── Helpers (inlined from former _io.py) ──────────────────────────────
+
+
+def _make_soma_context(tiledb_config: Dict[str, Any]):
+    """Create a SOMATileDBContext for tuning S3 timeouts/retries."""
+    if not tiledb_config:
+        return None
+    if soma is None:
+        raise RuntimeError(
+            "tiledbsoma is not importable, but tiledb_config was provided."
+        )
+    return soma.SOMATileDBContext(tiledb_config=tiledb_config)
+
+
+def _resolve_outpath(outpath: str, overwrite: bool) -> Path:
+    """Resolve and validate an output file path."""
+    p = Path(outpath)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    if not os.access(p.parent, os.W_OK):
+        raise PermissionError(f"Output directory is not writable: {p.parent}")
+    if p.exists():
+        if overwrite:
+            if not os.access(p, os.W_OK):
+                raise PermissionError(f"Cannot overwrite existing file: {p}")
+            p.unlink()
+        else:
+            raise FileExistsError(f"Output exists and overwrite=False: {p}")
+    return p
+
+
+# ── Query execution ──────────────────────────────────────────────────
+
+
+def run_query(spec: QuerySpec) -> Union[pd.DataFrame, Any, List[str]]:
     """
     Execute a Census query based on the QuerySpec.
 
@@ -47,9 +82,7 @@ def run_query(spec: QuerySpec) -> Union[pd.DataFrame, pa.Table, Any, Path, List[
     Returns:
         Depending on output.mode:
         - "pandas": pandas DataFrame
-        - "arrow": Arrow Table
         - "anndata": AnnData object
-        - "parquet": Path to output Parquet file
         - "dataset_list": sorted list of unique dataset ID strings
 
     Raises:
@@ -136,30 +169,6 @@ def run_query(spec: QuerySpec) -> Union[pd.DataFrame, pa.Table, Any, Path, List[
             logger.info(f"Retrieved DataFrame: {len(df):,} rows")
             return df
 
-        if mode == "arrow":
-            tables = list(
-                stream_obs_tables(exp, value_filter=value_filter, column_names=export_cols)
-            )
-            if not tables:
-                return pa.table({c: [] for c in export_cols})
-            result = pa.concat_tables(tables, promote=True)
-            logger.info(f"Retrieved Arrow Table: {result.num_rows:,} rows")
-            return result
-
-        if mode == "parquet":
-            if not spec.output.outpath:
-                raise ValueError("output.outpath is required for mode='parquet'")
-            outpath = _resolve_outpath(spec.output.outpath, spec.output.overwrite)
-
-            tables = stream_obs_tables(
-                exp, value_filter=value_filter, column_names=export_cols
-            )
-            rows, batches = write_parquet_stream(
-                tables, outpath, compression=spec.output.parquet_compression
-            )
-            logger.info(f"Wrote Parquet: {rows:,} rows in {batches} batches to {outpath}")
-            return outpath
-
         raise ValueError(f"Unknown output mode: {mode}")
 
 
@@ -208,10 +217,6 @@ The YAML configuration file should specify:
             print(f"\nQuery returned DataFrame with {len(result):,} rows")
             print(f"Columns: {list(result.columns)}")
             print(f"\nFirst 5 rows:\n{result.head()}")
-        elif isinstance(result, pa.Table):
-            print(f"\nQuery returned Arrow Table with {result.num_rows:,} rows")
-        elif isinstance(result, Path):
-            print(f"\nQuery output written to: {result}")
         else:
             print(f"\nQuery returned: {type(result)}")
 

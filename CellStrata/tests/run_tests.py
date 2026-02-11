@@ -2,7 +2,7 @@
 """
 run_tests.py - Standalone test runner for census_query module.
 Disclaimer AI was used to help write this test suite. Please review carefully.
-Runs tests without pytest, pyarrow, or pandas dependencies.
+Runs tests without pytest or pandas dependencies.
 """
 
 import sys
@@ -51,7 +51,6 @@ class OutputSpec:
     mode: str = "pandas"
     outpath: Optional[str] = None
     overwrite: bool = True
-    parquet_compression: str = "zstd"
 
 @dataclass(frozen=True)
 class QuerySpec:
@@ -292,11 +291,11 @@ def test_load_yaml_missing_file():
 
 def test_load_yaml_minimal():
     with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
-        yaml.dump({"output": {"mode": "arrow"}}, f)
+        yaml.dump({"output": {"mode": "pandas"}}, f)
         f.flush()
         spec = load_query_spec_yaml(f.name)
         assert_equal(spec.target.census_version, "stable")
-        assert_equal(spec.output.mode, "arrow")
+        assert_equal(spec.output.mode, "pandas")
     os.unlink(f.name)
 
 def test_format_in_list_simple():
