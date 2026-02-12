@@ -71,6 +71,7 @@ _DEFAULT_S3_CONFIG: Dict[str, Any] = {
     "vfs.s3.request_timeout_ms": 600_000,       # 10 min request timeout
     "vfs.s3.connect_max_tries": 5,              # retry up to 5 times
     "vfs.s3.connect_scale_factor": 25,          # exponential backoff factor
+    "vfs.s3.max_parallel_ops": 10,              # parallel S3 reads for init + streaming
 }
 
 

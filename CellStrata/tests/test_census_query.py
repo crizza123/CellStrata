@@ -17,8 +17,10 @@ Run with: pytest tests/test_census_query.py -v
 Run unit tests only: pytest tests/test_census_query.py -v -m "not integration"
 """
 
+import logging
 import os
 import tempfile
+import time
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -1391,6 +1393,58 @@ class TestRunQueryOutputIsUsable:
         # And result is still usable
         assert isinstance(result, pd.DataFrame)
         assert len(result) == 1
+
+
+class TestHeartbeatAndConfig:
+    """Tests for the _heartbeat helper and S3 default config."""
+
+    def test_heartbeat_emits_log_messages(self, caplog):
+        """_heartbeat should log at least once if we sleep past its interval."""
+        from census_query._runner import _heartbeat
+
+        with caplog.at_level(logging.INFO, logger="census_query._runner"):
+            with _heartbeat("test heartbeat", interval=0.1):
+                time.sleep(0.35)
+
+        heartbeat_msgs = [r for r in caplog.records if "test heartbeat" in r.message]
+        # Should have fired at ~0.1s, ~0.2s, ~0.3s
+        assert len(heartbeat_msgs) >= 2
+
+    def test_heartbeat_stops_after_block(self, caplog):
+        """_heartbeat thread should stop once the block exits."""
+        from census_query._runner import _heartbeat
+
+        with caplog.at_level(logging.INFO, logger="census_query._runner"):
+            with _heartbeat("quick block", interval=0.05):
+                time.sleep(0.12)
+
+        before_count = len([r for r in caplog.records if "quick block" in r.message])
+        time.sleep(0.15)
+        after_count = len([r for r in caplog.records if "quick block" in r.message])
+        # No new messages after exiting
+        assert after_count == before_count
+
+    def test_default_s3_config_has_max_parallel_ops(self):
+        """Ensure max_parallel_ops is in the default config."""
+        from census_query._io import _DEFAULT_S3_CONFIG
+
+        assert "vfs.s3.max_parallel_ops" in _DEFAULT_S3_CONFIG
+        assert _DEFAULT_S3_CONFIG["vfs.s3.max_parallel_ops"] >= 4
+
+    def test_run_query_uses_heartbeat(self, mock_census):
+        """run_query wraps open_soma with the heartbeat logger."""
+        mock_exp = mock_census["census_data"]["homo_sapiens"]
+        obs_df = pd.DataFrame({"dataset_id": ["ds_a"]})
+        mock_exp.obs.read.return_value.concat.return_value.to_pandas.return_value = obs_df
+
+        spec = QuerySpec(output=OutputSpec(mode="dataset_list"))
+
+        with patch("census_query._runner.cxc.open_soma") as mock_open:
+            mock_open.return_value.__enter__.return_value = mock_census
+            mock_open.return_value.__exit__ = MagicMock(return_value=False)
+            result = run_query(spec)
+
+        assert isinstance(result, pd.DataFrame)
 
 
 # =============================================================================
