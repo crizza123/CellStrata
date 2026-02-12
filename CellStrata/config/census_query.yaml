@@ -11,18 +11,19 @@ obs_filters:
   disease_ontology_term_ids: ["PATO:0000461"]
 
   # Tissue and cell type filters — REQUIRED to avoid querying 60M+ cells
-  tissue_general_labels: ["lung"]
-  cell_type_labels: ["mast cell"]
+  tissue_general_labels: ["brain"]
+  cell_type_labels: ["T cell"]
 
-  # Optional: narrow by assay or sex (commented out for speed)
-  # assay_labels: ["10x 3' v2", "10x 3' v3", "10x multiome"]
-  # sex_labels: ["male", "female"]
+  # Optional: narrow by assay or sex
+  assay_labels: ["10x 3' v2", "10x 3' v3", "10x multiome"]
+  sex_labels: ["male", "female"]
 
   # additional custom fragment if you need it
   # extra_value_filter: "development_stage != 'unknown'"
 
 output:
-  mode: pandas
+  mode: dataset_list
+  outpath: results.csv
 
 # Mitigate S3 timeouts
 tiledb_config:
