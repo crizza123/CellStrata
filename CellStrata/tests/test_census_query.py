@@ -51,6 +51,9 @@ from census_query import (
     stream_obs_tables,
     write_parquet_stream,
     write_parquet_parts,
+    pick_existing_cols,
+    detect_inventory_dir,
+    build_stage_ids_ge15,
     run_query,
     # Visualization functions
     plot_cell_type_counts,
@@ -258,11 +261,11 @@ class TestOutputSpec:
         """Test dataset_list output configuration."""
         output = OutputSpec(
             mode="dataset_list",
-            outpath="/tmp/datasets.txt",
+            outpath="/tmp/datasets.csv",
             overwrite=False,
         )
         assert output.mode == "dataset_list"
-        assert output.outpath == "/tmp/datasets.txt"
+        assert output.outpath == "/tmp/datasets.csv"
         assert output.overwrite is False
 
 
@@ -567,10 +570,10 @@ class TestBuildObsValueFilter:
 # Unit Tests: Runner
 # =============================================================================
 class TestDatasetListMode:
-    """Tests for the dataset_list output mode."""
+    """Tests for the dataset_list output mode (CSV with cell counts)."""
 
-    def test_returns_unique_sorted_ids(self, mock_census):
-        """Test that dataset_list mode returns sorted unique dataset IDs."""
+    def test_returns_summary_dataframe(self, mock_census):
+        """Test that dataset_list mode returns a DataFrame with dataset_id and cell_count."""
         mock_exp = mock_census["census_data"]["homo_sapiens"]
         obs_df = pd.DataFrame({"dataset_id": ["ds_b", "ds_a", "ds_b", "ds_c", "ds_a"]})
         mock_exp.obs.read.return_value.concat.return_value.to_pandas.return_value = obs_df
@@ -581,7 +584,10 @@ class TestDatasetListMode:
             mock_open.return_value.__enter__.return_value = mock_census
             result = run_query(spec)
 
-        assert result == ["ds_a", "ds_b", "ds_c"]
+        assert isinstance(result, pd.DataFrame)
+        assert list(result.columns) == ["dataset_id", "cell_count"]
+        assert list(result["dataset_id"]) == ["ds_a", "ds_b", "ds_c"]
+        assert list(result["cell_count"]) == [2, 2, 1]
 
     def test_queries_only_dataset_id_column(self, mock_census):
         """Test that only the dataset_id column is requested for efficiency."""
@@ -599,13 +605,13 @@ class TestDatasetListMode:
         call_kwargs = mock_exp.obs.read.call_args
         assert call_kwargs.kwargs.get("column_names") == ["dataset_id"]
 
-    def test_writes_to_file_when_outpath_set(self, mock_census, tmp_path):
-        """Test that dataset list is written to a file when outpath is provided."""
+    def test_writes_csv_when_outpath_set(self, mock_census, tmp_path):
+        """Test that dataset list is written as CSV when outpath is provided."""
         mock_exp = mock_census["census_data"]["homo_sapiens"]
         obs_df = pd.DataFrame({"dataset_id": ["ds_b", "ds_a", "ds_b"]})
         mock_exp.obs.read.return_value.concat.return_value.to_pandas.return_value = obs_df
 
-        outpath = tmp_path / "datasets.txt"
+        outpath = tmp_path / "datasets.csv"
         spec = QuerySpec(
             output=OutputSpec(mode="dataset_list", outpath=str(outpath)),
         )
@@ -614,13 +620,17 @@ class TestDatasetListMode:
             mock_open.return_value.__enter__.return_value = mock_census
             result = run_query(spec)
 
-        assert result == ["ds_a", "ds_b"]
+        assert isinstance(result, pd.DataFrame)
+        assert len(result) == 2
         assert outpath.exists()
-        lines = outpath.read_text().strip().split("\n")
-        assert lines == ["ds_a", "ds_b"]
+        # Verify CSV content
+        csv_df = pd.read_csv(outpath)
+        assert list(csv_df.columns) == ["dataset_id", "cell_count"]
+        assert list(csv_df["dataset_id"]) == ["ds_a", "ds_b"]
+        assert list(csv_df["cell_count"]) == [1, 2]
 
-    def test_returns_empty_list_when_no_matches(self, mock_census):
-        """Test that an empty list is returned when no cells match."""
+    def test_returns_empty_dataframe_when_no_matches(self, mock_census):
+        """Test that an empty DataFrame is returned when no cells match."""
         mock_exp = mock_census["census_data"]["homo_sapiens"]
         obs_df = pd.DataFrame({"dataset_id": pd.Series([], dtype=str)})
         mock_exp.obs.read.return_value.concat.return_value.to_pandas.return_value = obs_df
@@ -631,7 +641,9 @@ class TestDatasetListMode:
             mock_open.return_value.__enter__.return_value = mock_census
             result = run_query(spec)
 
-        assert result == []
+        assert isinstance(result, pd.DataFrame)
+        assert len(result) == 0
+        assert list(result.columns) == ["dataset_id", "cell_count"]
 
 
 class TestEdgeCases:
@@ -873,6 +885,104 @@ class TestParquetDirMode:
         assert outdir.is_dir()
         assert (outdir / "part-00000.parquet").exists()
         assert (outdir / "part-00001.parquet").exists()
+
+
+class TestPickExistingCols:
+    """Tests for pick_existing_cols function."""
+
+    def test_filters_to_existing(self):
+        """Test that only existing columns are returned."""
+        schema = ["dataset_id", "cell_type", "tissue", "sex"]
+        desired = ["dataset_id", "cell_type", "nonexistent_col"]
+        result = pick_existing_cols(schema, desired)
+        assert result == ["dataset_id", "cell_type"]
+
+    def test_preserves_order(self):
+        """Test that desired column order is preserved."""
+        schema = ["a", "b", "c", "d"]
+        desired = ["d", "b", "a"]
+        result = pick_existing_cols(schema, desired)
+        assert result == ["d", "b", "a"]
+
+    def test_all_missing(self):
+        """Test with all columns missing."""
+        schema = ["a", "b"]
+        desired = ["x", "y"]
+        result = pick_existing_cols(schema, desired)
+        assert result == []
+
+    def test_all_present(self):
+        """Test with all columns present."""
+        schema = ["a", "b", "c"]
+        desired = ["a", "b"]
+        result = pick_existing_cols(schema, desired)
+        assert result == ["a", "b"]
+
+
+class TestInventoryStageFilter:
+    """Tests for inventory-based development stage filtering."""
+
+    @pytest.fixture
+    def inventory_dir(self, tmp_path):
+        """Create mock inventory CSV files."""
+        year_pairs = pd.DataFrame({
+            "age_years": [10, 14, 15, 20, 30, 45, 60],
+            "development_stage_ontology_term_id": [
+                "HsapDv:0000100", "HsapDv:0000101", "HsapDv:0000102",
+                "HsapDv:0000103", "HsapDv:0000104", "HsapDv:0000105",
+                "HsapDv:0000106",
+            ],
+        })
+        year_pairs.to_csv(tmp_path / "year_old_stage_pairs_counts.csv", index=False)
+
+        pairs = pd.DataFrame({
+            "development_stage": [
+                "child stage", "adult stage", "young adult stage",
+                "fifth decade stage", "unknown",
+            ],
+            "development_stage_ontology_term_id": [
+                "HsapDv:0000010", "HsapDv:0000087", "HsapDv:0000088",
+                "HsapDv:0000089", "unknown",
+            ],
+        })
+        pairs.to_csv(tmp_path / "development_stage_pairs_counts.csv", index=False)
+        return tmp_path
+
+    def test_build_stage_ids_ge15(self, inventory_dir):
+        """Test that only age >= 15 IDs are returned."""
+        result = build_stage_ids_ge15(inventory_dir, min_age_years=15)
+        # Should include ages 15, 20, 30, 45, 60 + adult/young adult/fifth decade
+        assert "HsapDv:0000102" in result  # age 15
+        assert "HsapDv:0000103" in result  # age 20
+        assert "HsapDv:0000087" in result  # adult stage
+        assert "HsapDv:0000088" in result  # young adult stage
+        assert "HsapDv:0000089" in result  # fifth decade stage
+        # Should NOT include age < 15
+        assert "HsapDv:0000100" not in result  # age 10
+        assert "HsapDv:0000101" not in result  # age 14
+        # Should NOT include "unknown"
+        assert "unknown" not in result
+
+    def test_detect_inventory_dir(self, inventory_dir):
+        """Test that detect_inventory_dir finds the CSVs."""
+        result = detect_inventory_dir(str(inventory_dir))
+        assert result == inventory_dir
+
+    def test_detect_inventory_dir_missing(self, tmp_path):
+        """Test error when CSVs are not found."""
+        with pytest.raises(FileNotFoundError):
+            detect_inventory_dir(str(tmp_path / "nonexistent"))
+
+    def test_obs_filters_with_inventory(self, inventory_dir, mock_census):
+        """Test that build_obs_value_filter uses inventory when set."""
+        filters = ObsFilters(
+            is_primary_data=True,
+            inventory_dir=str(inventory_dir),
+            min_age_years=15,
+        )
+        result = build_obs_value_filter(mock_census, filters)
+        assert "development_stage_ontology_term_id in" in result
+        assert "HsapDv:0000087" in result  # adult stage
 
 
 # =============================================================================

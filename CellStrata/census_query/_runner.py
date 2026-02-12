@@ -30,6 +30,7 @@ from ._filters import (
 from ._io import (
     _make_soma_context,
     _resolve_outpath,
+    pick_existing_cols,
     stream_obs_tables,
     write_parquet_stream,
     write_parquet_parts,
@@ -38,7 +39,7 @@ from ._io import (
 logger = logging.getLogger(__name__)
 
 
-def run_query(spec: QuerySpec) -> Union[pd.DataFrame, pa.Table, Any, Path, List[str]]:
+def run_query(spec: QuerySpec) -> Union[pd.DataFrame, pa.Table, Any, Path]:
     """
     Execute a Census query based on the QuerySpec.
 
@@ -52,7 +53,7 @@ def run_query(spec: QuerySpec) -> Union[pd.DataFrame, pa.Table, Any, Path, List[
         - "anndata": AnnData object
         - "parquet": Path to output Parquet file
         - "parquet_dir": Path to output directory of Parquet part files
-        - "dataset_list": sorted list of unique dataset ID strings
+        - "dataset_list": DataFrame with dataset_id and cell_count columns (CSV)
 
     Raises:
         ValueError: If output mode is invalid or required options are missing.
@@ -76,7 +77,7 @@ def run_query(spec: QuerySpec) -> Union[pd.DataFrame, pa.Table, Any, Path, List[
         mode = spec.output.mode
         logger.info(f"Output mode: {mode}")
 
-        # dataset_list mode only needs dataset_id — skip column/organ setup
+        # dataset_list mode: summarise unique datasets with cell counts as CSV
         if mode == "dataset_list":
             logger.info("Querying Census for dataset IDs (streaming)...")
             df = (
@@ -87,16 +88,20 @@ def run_query(spec: QuerySpec) -> Union[pd.DataFrame, pa.Table, Any, Path, List[
                 .concat()
                 .to_pandas()
             )
-            unique_ids = sorted(df["dataset_id"].unique().tolist())
-            logger.info(f"Found {len(unique_ids)} unique dataset(s) "
-                        f"matching filters (from {len(df):,} cells)")
+            summary = (
+                df.groupby("dataset_id", sort=True)
+                .size()
+                .reset_index(name="cell_count")
+            )
+            logger.info(f"Found {len(summary)} unique dataset(s) "
+                        f"matching filters ({len(df):,} cells total)")
 
             if spec.output.outpath:
                 outpath = _resolve_outpath(spec.output.outpath, spec.output.overwrite)
-                outpath.write_text("\n".join(unique_ids) + "\n", encoding="utf-8")
-                logger.info(f"Wrote dataset list to {outpath}")
+                summary.to_csv(outpath, index=False)
+                logger.info(f"Wrote dataset list CSV to {outpath}")
 
-            return unique_ids
+            return summary
 
         # Determine export columns (not needed for dataset_list)
         organ_col = choose_organ_column(obs_keys)
@@ -111,6 +116,8 @@ def run_query(spec: QuerySpec) -> Union[pd.DataFrame, pa.Table, Any, Path, List[
             if required in obs_keys and required not in export_cols:
                 export_cols.append(required)
 
+        # Safe column selection: drop any columns not in the actual schema
+        export_cols = pick_existing_cols(obs_keys, export_cols)
         logger.info(f"Export columns ({len(export_cols)}): {export_cols}")
 
         # Execute based on output mode
@@ -229,10 +236,10 @@ The YAML configuration file should specify:
         spec = load_query_spec_yaml(args.config)
         result = run_query(spec)
 
-        if isinstance(result, list):
-            print(f"\nFound {len(result)} unique dataset(s):")
-            for ds_id in result:
-                print(f"  {ds_id}")
+        if isinstance(result, pd.DataFrame) and spec.output.mode == "dataset_list":
+            print(f"\nFound {len(result)} unique dataset(s) "
+                  f"({result['cell_count'].sum():,} cells total):")
+            print(result.to_string(index=False))
         elif isinstance(result, pd.DataFrame):
             print(f"\nQuery returned DataFrame with {len(result):,} rows")
             print(f"Columns: {list(result.columns)}")

@@ -96,6 +96,11 @@ class ObsFilters:
     development_stage_labels: List[str] = field(default_factory=list)
     development_stage_ontology_term_ids: List[str] = field(default_factory=list)
 
+    # Inventory-based age filtering: path to directory containing
+    # year_old_stage_pairs_counts.csv and development_stage_pairs_counts.csv
+    inventory_dir: Optional[str] = None
+    min_age_years: int = 15
+
     # Additional custom filter expression
     extra_value_filter: Optional[str] = None
 

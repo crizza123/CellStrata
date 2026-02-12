@@ -102,6 +102,32 @@ def _make_soma_context(tiledb_config: Dict[str, Any]):
     return soma.SOMATileDBContext(tiledb_config=merged)
 
 
+def pick_existing_cols(
+    schema_names: Sequence[str],
+    desired: Sequence[str],
+) -> List[str]:
+    """
+    Return only those columns from *desired* that exist in *schema_names*.
+
+    Silently skips columns not present in the schema rather than raising
+    an error, which is safer when working across Census versions where
+    column availability may vary.
+
+    Args:
+        schema_names: Column names available in the obs schema.
+        desired: Columns the caller would like to export.
+
+    Returns:
+        Filtered list preserving the order of *desired*.
+    """
+    available = set(schema_names)
+    result = [c for c in desired if c in available]
+    skipped = [c for c in desired if c not in available]
+    if skipped:
+        logger.info(f"Skipping columns not in schema: {skipped}")
+    return result
+
+
 def stream_obs_tables(
     exp,
     value_filter: str,
