@@ -261,11 +261,11 @@ class TestOutputSpec:
         """Test dataset_list output configuration."""
         output = OutputSpec(
             mode="dataset_list",
-            outpath="/tmp/datasets.txt",
+            outpath="/tmp/datasets.csv",
             overwrite=False,
         )
         assert output.mode == "dataset_list"
-        assert output.outpath == "/tmp/datasets.txt"
+        assert output.outpath == "/tmp/datasets.csv"
         assert output.overwrite is False
 
 
@@ -570,10 +570,10 @@ class TestBuildObsValueFilter:
 # Unit Tests: Runner
 # =============================================================================
 class TestDatasetListMode:
-    """Tests for the dataset_list output mode."""
+    """Tests for the dataset_list output mode (CSV with cell counts)."""
 
-    def test_returns_unique_sorted_ids(self, mock_census):
-        """Test that dataset_list mode returns sorted unique dataset IDs."""
+    def test_returns_summary_dataframe(self, mock_census):
+        """Test that dataset_list mode returns a DataFrame with dataset_id and cell_count."""
         mock_exp = mock_census["census_data"]["homo_sapiens"]
         obs_df = pd.DataFrame({"dataset_id": ["ds_b", "ds_a", "ds_b", "ds_c", "ds_a"]})
         mock_exp.obs.read.return_value.concat.return_value.to_pandas.return_value = obs_df
@@ -584,7 +584,10 @@ class TestDatasetListMode:
             mock_open.return_value.__enter__.return_value = mock_census
             result = run_query(spec)
 
-        assert result == ["ds_a", "ds_b", "ds_c"]
+        assert isinstance(result, pd.DataFrame)
+        assert list(result.columns) == ["dataset_id", "cell_count"]
+        assert list(result["dataset_id"]) == ["ds_a", "ds_b", "ds_c"]
+        assert list(result["cell_count"]) == [2, 2, 1]
 
     def test_queries_only_dataset_id_column(self, mock_census):
         """Test that only the dataset_id column is requested for efficiency."""
@@ -602,13 +605,13 @@ class TestDatasetListMode:
         call_kwargs = mock_exp.obs.read.call_args
         assert call_kwargs.kwargs.get("column_names") == ["dataset_id"]
 
-    def test_writes_to_file_when_outpath_set(self, mock_census, tmp_path):
-        """Test that dataset list is written to a file when outpath is provided."""
+    def test_writes_csv_when_outpath_set(self, mock_census, tmp_path):
+        """Test that dataset list is written as CSV when outpath is provided."""
         mock_exp = mock_census["census_data"]["homo_sapiens"]
         obs_df = pd.DataFrame({"dataset_id": ["ds_b", "ds_a", "ds_b"]})
         mock_exp.obs.read.return_value.concat.return_value.to_pandas.return_value = obs_df
 
-        outpath = tmp_path / "datasets.txt"
+        outpath = tmp_path / "datasets.csv"
         spec = QuerySpec(
             output=OutputSpec(mode="dataset_list", outpath=str(outpath)),
         )
@@ -617,13 +620,17 @@ class TestDatasetListMode:
             mock_open.return_value.__enter__.return_value = mock_census
             result = run_query(spec)
 
-        assert result == ["ds_a", "ds_b"]
+        assert isinstance(result, pd.DataFrame)
+        assert len(result) == 2
         assert outpath.exists()
-        lines = outpath.read_text().strip().split("\n")
-        assert lines == ["ds_a", "ds_b"]
+        # Verify CSV content
+        csv_df = pd.read_csv(outpath)
+        assert list(csv_df.columns) == ["dataset_id", "cell_count"]
+        assert list(csv_df["dataset_id"]) == ["ds_a", "ds_b"]
+        assert list(csv_df["cell_count"]) == [1, 2]
 
-    def test_returns_empty_list_when_no_matches(self, mock_census):
-        """Test that an empty list is returned when no cells match."""
+    def test_returns_empty_dataframe_when_no_matches(self, mock_census):
+        """Test that an empty DataFrame is returned when no cells match."""
         mock_exp = mock_census["census_data"]["homo_sapiens"]
         obs_df = pd.DataFrame({"dataset_id": pd.Series([], dtype=str)})
         mock_exp.obs.read.return_value.concat.return_value.to_pandas.return_value = obs_df
@@ -634,7 +641,9 @@ class TestDatasetListMode:
             mock_open.return_value.__enter__.return_value = mock_census
             result = run_query(spec)
 
-        assert result == []
+        assert isinstance(result, pd.DataFrame)
+        assert len(result) == 0
+        assert list(result.columns) == ["dataset_id", "cell_count"]
 
 
 class TestEdgeCases:
