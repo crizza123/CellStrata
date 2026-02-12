@@ -10,7 +10,15 @@ dataset_id + cell_count, plus a pandas DataFrame you can inspect.
 """
 
 import cellxgene_census as cxc
+import matplotlib.pyplot as plt
 import pandas as pd
+
+from CellStrata.census_query._visualize import (
+    plot_assay_counts,
+    plot_dataset_contribution,
+    plot_donors_per_dataset,
+    plot_sex_distribution,
+)
 
 # ── Filters (edit these) ────────────────────────────────────────────
 CENSUS_VERSION = "stable"
@@ -68,5 +76,26 @@ with cxc.open_soma(census_version=CENSUS_VERSION) as census:
     print(f"\nAssays:  {df['assay'].value_counts().to_dict()}")
     print(f"Sex:     {df['sex'].value_counts().to_dict()}")
     print(f"Donors:  {df['donor_id'].nunique()}")
+
+    # ── Visualization ─────────────────────────────────────────────
+    SAVE_PATH = "query_summary.png"
+
+    fig, axes = plt.subplots(2, 2, figsize=(14, 10))
+    fig.suptitle(
+        f"Census query — {len(df):,} cells, "
+        f"{df['donor_id'].nunique():,} donors, "
+        f"{df['dataset_id'].nunique():,} datasets",
+        fontsize=14,
+        fontweight="bold",
+    )
+
+    plot_assay_counts(df, ax=axes[0, 0])
+    plot_sex_distribution(df, ax=axes[0, 1])
+    plot_dataset_contribution(df, ax=axes[1, 0])
+    plot_donors_per_dataset(df, ax=axes[1, 1])
+
+    fig.tight_layout(rect=[0, 0, 1, 0.95])
+    fig.savefig(SAVE_PATH, dpi=150, bbox_inches="tight")
+    print(f"\nSaved visualization to {SAVE_PATH}")
 
 print("\nDone.")
