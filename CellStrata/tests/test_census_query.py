@@ -43,6 +43,7 @@ from census_query import (
     load_query_spec_yaml,
     _format_in_list,
     _default_obs_columns,
+    _execute_query,
     build_obs_export_columns,
     choose_organ_column,
     build_obs_value_filter,
@@ -1138,6 +1139,258 @@ class TestPlotMetadataSummary:
         fig = plot_metadata_summary(df)
         assert isinstance(fig, plt.Figure)
         plt.close("all")
+
+
+# =============================================================================
+# Unit Tests: _execute_query and run_query output guarantees
+# =============================================================================
+class TestExecuteQueryDirect:
+    """Tests that _execute_query produces usable output when given a mock census.
+
+    These tests call _execute_query directly (bypassing open_soma) to verify
+    that every output mode returns the correct type with the right shape —
+    independent of S3 context-manager cleanup.
+    """
+
+    def test_dataset_list_returns_dataframe(self, mock_census):
+        """dataset_list mode returns a DataFrame with dataset_id + cell_count."""
+        mock_exp = mock_census["census_data"]["homo_sapiens"]
+        obs_df = pd.DataFrame({"dataset_id": ["ds_a", "ds_b", "ds_a"]})
+        mock_exp.obs.read.return_value.concat.return_value.to_pandas.return_value = obs_df
+
+        spec = QuerySpec(output=OutputSpec(mode="dataset_list"))
+        result = _execute_query(mock_census, spec)
+
+        assert isinstance(result, pd.DataFrame)
+        assert list(result.columns) == ["dataset_id", "cell_count"]
+        assert len(result) == 2
+        assert result["cell_count"].sum() == 3
+
+    def test_dataset_list_writes_csv(self, mock_census, tmp_path):
+        """dataset_list mode writes CSV when outpath is set."""
+        mock_exp = mock_census["census_data"]["homo_sapiens"]
+        obs_df = pd.DataFrame({"dataset_id": ["ds_x"]})
+        mock_exp.obs.read.return_value.concat.return_value.to_pandas.return_value = obs_df
+
+        csv_path = tmp_path / "out.csv"
+        spec = QuerySpec(output=OutputSpec(mode="dataset_list", outpath=str(csv_path)))
+        result = _execute_query(mock_census, spec)
+
+        assert csv_path.exists()
+        csv_df = pd.read_csv(csv_path)
+        assert list(csv_df.columns) == ["dataset_id", "cell_count"]
+        assert len(csv_df) == len(result)
+
+    def test_pandas_returns_dataframe(self, mock_census):
+        """pandas mode returns a DataFrame with the requested rows."""
+        mock_exp = mock_census["census_data"]["homo_sapiens"]
+        obs_df = pd.DataFrame({
+            "dataset_id": ["ds_a", "ds_b"],
+            "cell_type": ["B cell", "T cell"],
+            "tissue": ["lung", "blood"],
+            "tissue_general": ["lung", "blood"],
+        })
+        mock_exp.obs.read.return_value.concat.return_value.to_pandas.return_value = obs_df
+
+        spec = QuerySpec(
+            obs_columns=["dataset_id", "cell_type"],
+            output=OutputSpec(mode="pandas"),
+        )
+        result = _execute_query(mock_census, spec)
+
+        assert isinstance(result, pd.DataFrame)
+        assert len(result) == 2
+
+    def test_arrow_returns_table(self, mock_census):
+        """arrow mode returns a pyarrow Table."""
+        mock_exp = mock_census["census_data"]["homo_sapiens"]
+        batch = pa.record_batch({
+            "dataset_id": ["ds_a", "ds_b"],
+            "cell_type": ["B cell", "T cell"],
+        })
+        mock_exp.obs.read.return_value = iter([batch])
+
+        spec = QuerySpec(
+            obs_columns=["dataset_id", "cell_type"],
+            output=OutputSpec(mode="arrow"),
+        )
+        result = _execute_query(mock_census, spec)
+
+        assert isinstance(result, pa.Table)
+        assert result.num_rows == 2
+
+    def test_arrow_empty_returns_empty_table(self, mock_census):
+        """arrow mode with no matching rows returns an empty table."""
+        mock_exp = mock_census["census_data"]["homo_sapiens"]
+        mock_exp.obs.read.return_value = iter([])
+
+        spec = QuerySpec(
+            obs_columns=["dataset_id", "cell_type"],
+            output=OutputSpec(mode="arrow"),
+        )
+        result = _execute_query(mock_census, spec)
+
+        assert isinstance(result, pa.Table)
+        assert result.num_rows == 0
+
+    def test_parquet_returns_path(self, mock_census, tmp_path):
+        """parquet mode writes a file and returns its Path."""
+        mock_exp = mock_census["census_data"]["homo_sapiens"]
+        batch = pa.record_batch({
+            "dataset_id": ["ds_a"],
+            "cell_type": ["B cell"],
+        })
+        mock_exp.obs.read.return_value = iter([batch])
+
+        outpath = tmp_path / "result.parquet"
+        spec = QuerySpec(
+            obs_columns=["dataset_id", "cell_type"],
+            output=OutputSpec(mode="parquet", outpath=str(outpath)),
+        )
+        result = _execute_query(mock_census, spec)
+
+        assert isinstance(result, Path)
+        assert result.exists()
+        import pyarrow.parquet as pq
+        tbl = pq.read_table(result)
+        assert tbl.num_rows == 1
+
+    def test_parquet_dir_returns_path(self, mock_census, tmp_path):
+        """parquet_dir mode writes part files and returns the directory Path."""
+        mock_exp = mock_census["census_data"]["homo_sapiens"]
+        batch1 = pa.record_batch({"dataset_id": ["ds_a"], "cell_type": ["B cell"]})
+        batch2 = pa.record_batch({"dataset_id": ["ds_b"], "cell_type": ["T cell"]})
+        mock_exp.obs.read.return_value = iter([batch1, batch2])
+
+        outdir = tmp_path / "parts"
+        spec = QuerySpec(
+            obs_columns=["dataset_id", "cell_type"],
+            output=OutputSpec(mode="parquet_dir", outpath=str(outdir)),
+        )
+        result = _execute_query(mock_census, spec)
+
+        assert isinstance(result, Path)
+        assert result.is_dir()
+        assert (result / "part-00000.parquet").exists()
+        assert (result / "part-00001.parquet").exists()
+
+    def test_invalid_mode_raises(self, mock_census):
+        """An unknown mode raises ValueError."""
+        spec = QuerySpec(
+            obs_columns=["dataset_id", "cell_type"],
+            output=OutputSpec(mode="bogus"),
+        )
+        with pytest.raises(ValueError, match="Unknown output mode"):
+            _execute_query(mock_census, spec)
+
+
+class TestRunQueryOutputIsUsable:
+    """Verify that run_query returns a result *through* the open_soma context.
+
+    These tests patch open_soma so the context manager is a simple mock,
+    confirming that run_query's return value is the same object produced
+    by _execute_query — not lost during __exit__ cleanup.
+    """
+
+    def _patched_run(self, mock_census, spec):
+        """Helper: run_query with mocked open_soma."""
+        with patch("census_query._runner.cxc.open_soma") as mock_open:
+            mock_open.return_value.__enter__.return_value = mock_census
+            return run_query(spec)
+
+    def test_dataset_list_output_usable(self, mock_census):
+        mock_exp = mock_census["census_data"]["homo_sapiens"]
+        obs_df = pd.DataFrame({"dataset_id": ["ds_a", "ds_a", "ds_b"]})
+        mock_exp.obs.read.return_value.concat.return_value.to_pandas.return_value = obs_df
+
+        spec = QuerySpec(output=OutputSpec(mode="dataset_list"))
+        result = self._patched_run(mock_census, spec)
+
+        # Result must be usable after run_query returns (context is closed)
+        assert isinstance(result, pd.DataFrame)
+        assert list(result.columns) == ["dataset_id", "cell_count"]
+        assert result["cell_count"].sum() == 3
+        # Verify we can iterate, slice, write — i.e. it's a real DataFrame
+        assert len(result.to_dict(orient="records")) == 2
+
+    def test_pandas_output_usable(self, mock_census):
+        mock_exp = mock_census["census_data"]["homo_sapiens"]
+        obs_df = pd.DataFrame({
+            "dataset_id": ["ds_a"], "cell_type": ["B cell"],
+            "tissue": ["lung"], "tissue_general": ["lung"],
+        })
+        mock_exp.obs.read.return_value.concat.return_value.to_pandas.return_value = obs_df
+
+        spec = QuerySpec(
+            obs_columns=["dataset_id", "cell_type"],
+            output=OutputSpec(mode="pandas"),
+        )
+        result = self._patched_run(mock_census, spec)
+
+        assert isinstance(result, pd.DataFrame)
+        assert len(result) == 1
+        # Can access columns after context is closed
+        assert "dataset_id" in result.columns
+
+    def test_arrow_output_usable(self, mock_census):
+        mock_exp = mock_census["census_data"]["homo_sapiens"]
+        batch = pa.record_batch({
+            "dataset_id": ["ds_a", "ds_b"],
+            "cell_type": ["B cell", "T cell"],
+        })
+        mock_exp.obs.read.return_value = iter([batch])
+
+        spec = QuerySpec(
+            obs_columns=["dataset_id", "cell_type"],
+            output=OutputSpec(mode="arrow"),
+        )
+        result = self._patched_run(mock_census, spec)
+
+        assert isinstance(result, pa.Table)
+        assert result.num_rows == 2
+        # Can convert to pandas after context is closed
+        df = result.to_pandas()
+        assert len(df) == 2
+
+    def test_parquet_output_usable(self, mock_census, tmp_path):
+        mock_exp = mock_census["census_data"]["homo_sapiens"]
+        batch = pa.record_batch({"dataset_id": ["ds_a"], "cell_type": ["B cell"]})
+        mock_exp.obs.read.return_value = iter([batch])
+
+        outpath = tmp_path / "out.parquet"
+        spec = QuerySpec(
+            obs_columns=["dataset_id", "cell_type"],
+            output=OutputSpec(mode="parquet", outpath=str(outpath)),
+        )
+        result = self._patched_run(mock_census, spec)
+
+        assert isinstance(result, Path)
+        assert result.exists()
+        import pyarrow.parquet as pq
+        tbl = pq.read_table(result)
+        assert tbl.num_rows == 1
+
+    def test_context_exit_called(self, mock_census):
+        """Confirm that open_soma __exit__ is actually called after run_query."""
+        mock_exp = mock_census["census_data"]["homo_sapiens"]
+        obs_df = pd.DataFrame({"dataset_id": ["ds_a"]})
+        mock_exp.obs.read.return_value.concat.return_value.to_pandas.return_value = obs_df
+
+        spec = QuerySpec(output=OutputSpec(mode="dataset_list"))
+
+        with patch("census_query._runner.cxc.open_soma") as mock_open:
+            mock_ctx = MagicMock()
+            mock_ctx.__enter__ = MagicMock(return_value=mock_census)
+            mock_ctx.__exit__ = MagicMock(return_value=False)
+            mock_open.return_value = mock_ctx
+
+            result = run_query(spec)
+
+        # __exit__ must have been called (cleanup happened)
+        mock_ctx.__exit__.assert_called_once()
+        # And result is still usable
+        assert isinstance(result, pd.DataFrame)
+        assert len(result) == 1
 
 
 # =============================================================================

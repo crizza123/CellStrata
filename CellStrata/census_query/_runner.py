@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import time
 from pathlib import Path
 from typing import (
     Any,
@@ -57,30 +58,42 @@ def _execute_query(census, spec: QuerySpec) -> Union[pd.DataFrame, pa.Table, Any
     Raises:
         ValueError: If output mode is invalid or required options are missing.
     """
+    t0 = time.monotonic()
+
     logger.info("Census connection open. Reading experiment schema...")
     exp = census["census_data"][spec.target.organism]
     obs_keys = list(exp.obs.keys())
     logger.info(f"Experiment obs schema: {len(obs_keys)} columns available")
+    logger.debug("schema read in %.2fs", time.monotonic() - t0)
 
     # Build the value filter
+    t1 = time.monotonic()
     logger.info("Resolving ontology labels and building value filter...")
     value_filter = build_obs_value_filter(census, spec.obs_filters)
     logger.info(f"Value filter: {value_filter}")
+    logger.debug("filter build in %.2fs", time.monotonic() - t1)
 
     mode = spec.output.mode
     logger.info(f"Output mode: {mode}")
 
     # dataset_list mode: summarise unique datasets with cell counts as CSV
     if mode == "dataset_list":
+        t2 = time.monotonic()
         logger.info("Querying Census for dataset IDs (streaming)...")
-        df = (
-            exp.obs.read(
-                value_filter=value_filter or None,
-                column_names=["dataset_id"],
-            )
-            .concat()
-            .to_pandas()
+        logger.debug("obs.read(column_names=['dataset_id']) starting...")
+        reader = exp.obs.read(
+            value_filter=value_filter or None,
+            column_names=["dataset_id"],
         )
+        logger.debug("obs.read() returned iterator in %.2fs, concatenating...",
+                      time.monotonic() - t2)
+        arrow_tbl = reader.concat()
+        logger.debug("concat() done in %.2fs, converting to pandas...",
+                      time.monotonic() - t2)
+        df = arrow_tbl.to_pandas()
+        logger.debug("to_pandas() done in %.2fs (%d rows)",
+                      time.monotonic() - t2, len(df))
+
         summary = (
             df.groupby("dataset_id", sort=True)
             .size()
@@ -94,6 +107,7 @@ def _execute_query(census, spec: QuerySpec) -> Union[pd.DataFrame, pa.Table, Any
             summary.to_csv(outpath, index=False)
             logger.info(f"Wrote dataset list CSV to {outpath}")
 
+        logger.debug("dataset_list mode total: %.2fs", time.monotonic() - t0)
         return summary
 
     # Determine export columns (not needed for dataset_list)
@@ -125,6 +139,7 @@ def _execute_query(census, spec: QuerySpec) -> Union[pd.DataFrame, pa.Table, Any
             else "Mus musculus"
         )
 
+        t2 = time.monotonic()
         logger.info("Downloading AnnData from Census (this may take a while)...")
         adata = cxc.get_anndata(
             census=census,
@@ -134,33 +149,47 @@ def _execute_query(census, spec: QuerySpec) -> Union[pd.DataFrame, pa.Table, Any
             column_names=column_names,
         )
         logger.info(f"Retrieved AnnData: {adata.n_obs} cells x {adata.n_vars} genes")
+        logger.debug("anndata download in %.2fs, total %.2fs",
+                      time.monotonic() - t2, time.monotonic() - t0)
         return adata
 
     if mode == "pandas":
+        t2 = time.monotonic()
         logger.info("Streaming obs metadata from Census...")
-        df = (
-            exp.obs.read(value_filter=value_filter or None, column_names=export_cols)
-            .concat()
-            .to_pandas()
-        )
+        logger.debug("obs.read() starting...")
+        reader = exp.obs.read(value_filter=value_filter or None, column_names=export_cols)
+        logger.debug("obs.read() returned iterator in %.2fs, concatenating...",
+                      time.monotonic() - t2)
+        arrow_tbl = reader.concat()
+        logger.debug("concat() done in %.2fs, converting to pandas...",
+                      time.monotonic() - t2)
+        df = arrow_tbl.to_pandas()
         logger.info(f"Retrieved DataFrame: {len(df):,} rows")
+        logger.debug("pandas mode in %.2fs, total %.2fs",
+                      time.monotonic() - t2, time.monotonic() - t0)
         return df
 
     if mode == "arrow":
+        t2 = time.monotonic()
         logger.info("Streaming Arrow tables from Census...")
         tables = list(
             stream_obs_tables(exp, value_filter=value_filter, column_names=export_cols)
         )
+        logger.debug("streamed %d Arrow batches in %.2fs", len(tables),
+                      time.monotonic() - t2)
         if not tables:
+            logger.debug("no batches returned, returning empty table")
             return pa.table({c: [] for c in export_cols})
         result = pa.concat_tables(tables, promote=True)
         logger.info(f"Retrieved Arrow Table: {result.num_rows:,} rows")
+        logger.debug("arrow mode total: %.2fs", time.monotonic() - t0)
         return result
 
     if mode == "parquet":
         if not spec.output.outpath:
             raise ValueError("output.outpath is required for mode='parquet'")
         outpath = _resolve_outpath(spec.output.outpath, spec.output.overwrite)
+        t2 = time.monotonic()
         logger.info(f"Streaming obs to Parquet file: {outpath}")
 
         tables = stream_obs_tables(
@@ -170,12 +199,15 @@ def _execute_query(census, spec: QuerySpec) -> Union[pd.DataFrame, pa.Table, Any
             tables, outpath, compression=spec.output.parquet_compression
         )
         logger.info(f"Wrote Parquet: {rows:,} rows in {batches} batches to {outpath}")
+        logger.debug("parquet mode in %.2fs, total %.2fs",
+                      time.monotonic() - t2, time.monotonic() - t0)
         return outpath
 
     if mode == "parquet_dir":
         if not spec.output.outpath:
             raise ValueError("output.outpath is required for mode='parquet_dir'")
         outdir = Path(spec.output.outpath)
+        t2 = time.monotonic()
         logger.info(f"Streaming obs to Parquet directory: {outdir}")
 
         tables = stream_obs_tables(
@@ -187,6 +219,8 @@ def _execute_query(census, spec: QuerySpec) -> Union[pd.DataFrame, pa.Table, Any
         logger.info(
             f"Wrote Parquet directory: {rows:,} rows in {parts} parts to {outdir}"
         )
+        logger.debug("parquet_dir mode in %.2fs, total %.2fs",
+                      time.monotonic() - t2, time.monotonic() - t0)
         return outdir
 
     raise ValueError(f"Unknown output mode: {mode}")
@@ -216,8 +250,16 @@ def run_query(spec: QuerySpec) -> Union[pd.DataFrame, pa.Table, Any, Path]:
 
     context = _make_soma_context(spec.tiledb_config)
 
+    t_open = time.monotonic()
+    logger.debug("open_soma() connecting...")
     with cxc.open_soma(census_version=spec.target.census_version, context=context) as census:
-        return _execute_query(census, spec)
+        logger.debug("open_soma() ready in %.2fs", time.monotonic() - t_open)
+        result = _execute_query(census, spec)
+        logger.debug("_execute_query returned, exiting context manager "
+                      "(cleanup may be slow)...")
+    logger.debug("open_soma __exit__ finished in %.2fs",
+                  time.monotonic() - t_open)
+    return result
 
 
 def main():
@@ -262,9 +304,12 @@ The YAML configuration file should specify:
 
         # Manage the Census context in main() so we can print results
         # *before* __exit__() runs — its S3 cleanup can stall.
+        t_open = time.monotonic()
+        logger.debug("open_soma() connecting...")
         with cxc.open_soma(
             census_version=spec.target.census_version, context=context
         ) as census:
+            logger.debug("open_soma() ready in %.2fs", time.monotonic() - t_open)
             result = _execute_query(census, spec)
 
             if isinstance(result, pd.DataFrame) and spec.output.mode == "dataset_list":
@@ -282,7 +327,10 @@ The YAML configuration file should specify:
             else:
                 print(f"\nQuery returned: {type(result)}")
 
-        logger.info("Census connection closed.")
+            logger.debug("output printed, exiting context (cleanup may be slow)...")
+
+        logger.info("Census connection closed (%.2fs for __exit__).",
+                     time.monotonic() - t_open)
 
     except Exception as e:
         logger.error(f"Query failed: {e}")
