@@ -30,6 +30,7 @@ from ._filters import (
 from ._io import (
     _make_soma_context,
     _resolve_outpath,
+    pick_existing_cols,
     stream_obs_tables,
     write_parquet_stream,
     write_parquet_parts,
@@ -111,6 +112,8 @@ def run_query(spec: QuerySpec) -> Union[pd.DataFrame, pa.Table, Any, Path, List[
             if required in obs_keys and required not in export_cols:
                 export_cols.append(required)
 
+        # Safe column selection: drop any columns not in the actual schema
+        export_cols = pick_existing_cols(obs_keys, export_cols)
         logger.info(f"Export columns ({len(export_cols)}): {export_cols}")
 
         # Execute based on output mode

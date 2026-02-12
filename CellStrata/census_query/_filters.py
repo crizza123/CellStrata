@@ -9,8 +9,10 @@ running a full query.
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 from typing import (
     List,
+    Optional,
     Sequence,
 )
 
@@ -113,6 +115,109 @@ def choose_organ_column(obs_keys: Sequence[str]) -> str:
     raise ValueError("Neither tissue_general nor tissue found in obs schema keys.")
 
 
+def detect_inventory_dir(user_hint: Optional[str] = None) -> Path:
+    """
+    Locate the directory containing development stage inventory CSVs.
+
+    Looks for a folder containing:
+      - year_old_stage_pairs_counts.csv
+      - development_stage_pairs_counts.csv
+
+    Args:
+        user_hint: Optional explicit path (string) to the directory.
+
+    Returns:
+        Path to the inventory directory.
+
+    Raises:
+        FileNotFoundError: If the directory cannot be found.
+    """
+    required = ["year_old_stage_pairs_counts.csv", "development_stage_pairs_counts.csv"]
+
+    candidates: List[Path] = []
+    if user_hint is not None:
+        candidates.append(Path(user_hint))
+
+    candidates.extend([
+        Path.home() / "census_exports" / "dev_stage_inventory",
+        Path("/mnt/data"),
+    ])
+
+    for d in candidates:
+        if d.is_dir() and all((d / f).exists() for f in required):
+            return d
+
+    raise FileNotFoundError(
+        "Could not find inventory CSVs. Set inventory_dir in obs_filters to the "
+        "folder containing:\n"
+        "  - year_old_stage_pairs_counts.csv\n"
+        "  - development_stage_pairs_counts.csv"
+    )
+
+
+def build_stage_ids_ge15(inventory_dir: Path, min_age_years: int = 15) -> List[str]:
+    """
+    Build a development_stage_ontology_term_id allow-list for age >= min_age_years
+    using local CSV inventories.
+
+    Includes all N-year-old stages where N >= min_age_years, plus standard
+    adult stage labels (decades, age bins, etc.).
+
+    Args:
+        inventory_dir: Path to directory with inventory CSVs.
+        min_age_years: Minimum age in years.
+
+    Returns:
+        Sorted list of development_stage_ontology_term_id strings.
+    """
+    year_pairs = pd.read_csv(inventory_dir / "year_old_stage_pairs_counts.csv")
+    pairs = pd.read_csv(inventory_dir / "development_stage_pairs_counts.csv")
+
+    ids = set(
+        year_pairs.loc[
+            year_pairs["age_years"] >= min_age_years,
+            "development_stage_ontology_term_id",
+        ]
+        .astype(str)
+        .tolist()
+    )
+
+    extra_labels = [
+        "15-19 year-old",
+        "adult stage",
+        "young adult stage",
+        "prime adult stage",
+        "late adult stage",
+        "middle aged stage",
+        "third decade stage",
+        "fourth decade stage",
+        "fifth decade stage",
+        "sixth decade stage",
+        "seventh decade stage",
+        "eighth decade stage",
+        "ninth decade stage",
+        "60-79 year-old stage",
+        "80 year-old and over stage",
+        "90 year-old and over stage",
+    ]
+
+    extra_ids = (
+        pairs.loc[
+            pairs["development_stage"].isin(extra_labels),
+            "development_stage_ontology_term_id",
+        ]
+        .astype(str)
+        .tolist()
+    )
+    ids.update(extra_ids)
+
+    ids.discard("unknown")
+    logger.info(
+        f"Inventory age filter: {len(ids)} development stage IDs for age >= {min_age_years}"
+    )
+    return sorted(ids)
+
+
 def build_obs_value_filter(census, obs_filters: ObsFilters) -> str:
     """
     Build a SOMA value_filter string from ObsFilters.
@@ -186,12 +291,18 @@ def build_obs_value_filter(census, obs_filters: ObsFilters) -> str:
     if ct_ids:
         parts.append(f"{OBS_TERM_ID_COLS['cell_type']} in {_format_in_list(ct_ids)}")
 
-    # Development stage filter
+    # Development stage filter — three sources (in priority order):
+    # 1. Explicit ontology term IDs
+    # 2. Label resolution
+    # 3. Inventory-based age filtering (CSV directory)
     ds_ids = list(obs_filters.development_stage_ontology_term_ids)
     if not ds_ids and obs_filters.development_stage_labels:
         ds_ids = resolve_ontology_term_ids(
             census, "development_stage", obs_filters.development_stage_labels
         )
+    if not ds_ids and obs_filters.inventory_dir:
+        inv_dir = detect_inventory_dir(obs_filters.inventory_dir)
+        ds_ids = build_stage_ids_ge15(inv_dir, obs_filters.min_age_years)
     if ds_ids:
         parts.append(
             f"{OBS_TERM_ID_COLS['development_stage']} in {_format_in_list(ds_ids)}"

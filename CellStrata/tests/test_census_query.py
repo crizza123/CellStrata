@@ -51,6 +51,9 @@ from census_query import (
     stream_obs_tables,
     write_parquet_stream,
     write_parquet_parts,
+    pick_existing_cols,
+    detect_inventory_dir,
+    build_stage_ids_ge15,
     run_query,
     # Visualization functions
     plot_cell_type_counts,
@@ -873,6 +876,104 @@ class TestParquetDirMode:
         assert outdir.is_dir()
         assert (outdir / "part-00000.parquet").exists()
         assert (outdir / "part-00001.parquet").exists()
+
+
+class TestPickExistingCols:
+    """Tests for pick_existing_cols function."""
+
+    def test_filters_to_existing(self):
+        """Test that only existing columns are returned."""
+        schema = ["dataset_id", "cell_type", "tissue", "sex"]
+        desired = ["dataset_id", "cell_type", "nonexistent_col"]
+        result = pick_existing_cols(schema, desired)
+        assert result == ["dataset_id", "cell_type"]
+
+    def test_preserves_order(self):
+        """Test that desired column order is preserved."""
+        schema = ["a", "b", "c", "d"]
+        desired = ["d", "b", "a"]
+        result = pick_existing_cols(schema, desired)
+        assert result == ["d", "b", "a"]
+
+    def test_all_missing(self):
+        """Test with all columns missing."""
+        schema = ["a", "b"]
+        desired = ["x", "y"]
+        result = pick_existing_cols(schema, desired)
+        assert result == []
+
+    def test_all_present(self):
+        """Test with all columns present."""
+        schema = ["a", "b", "c"]
+        desired = ["a", "b"]
+        result = pick_existing_cols(schema, desired)
+        assert result == ["a", "b"]
+
+
+class TestInventoryStageFilter:
+    """Tests for inventory-based development stage filtering."""
+
+    @pytest.fixture
+    def inventory_dir(self, tmp_path):
+        """Create mock inventory CSV files."""
+        year_pairs = pd.DataFrame({
+            "age_years": [10, 14, 15, 20, 30, 45, 60],
+            "development_stage_ontology_term_id": [
+                "HsapDv:0000100", "HsapDv:0000101", "HsapDv:0000102",
+                "HsapDv:0000103", "HsapDv:0000104", "HsapDv:0000105",
+                "HsapDv:0000106",
+            ],
+        })
+        year_pairs.to_csv(tmp_path / "year_old_stage_pairs_counts.csv", index=False)
+
+        pairs = pd.DataFrame({
+            "development_stage": [
+                "child stage", "adult stage", "young adult stage",
+                "fifth decade stage", "unknown",
+            ],
+            "development_stage_ontology_term_id": [
+                "HsapDv:0000010", "HsapDv:0000087", "HsapDv:0000088",
+                "HsapDv:0000089", "unknown",
+            ],
+        })
+        pairs.to_csv(tmp_path / "development_stage_pairs_counts.csv", index=False)
+        return tmp_path
+
+    def test_build_stage_ids_ge15(self, inventory_dir):
+        """Test that only age >= 15 IDs are returned."""
+        result = build_stage_ids_ge15(inventory_dir, min_age_years=15)
+        # Should include ages 15, 20, 30, 45, 60 + adult/young adult/fifth decade
+        assert "HsapDv:0000102" in result  # age 15
+        assert "HsapDv:0000103" in result  # age 20
+        assert "HsapDv:0000087" in result  # adult stage
+        assert "HsapDv:0000088" in result  # young adult stage
+        assert "HsapDv:0000089" in result  # fifth decade stage
+        # Should NOT include age < 15
+        assert "HsapDv:0000100" not in result  # age 10
+        assert "HsapDv:0000101" not in result  # age 14
+        # Should NOT include "unknown"
+        assert "unknown" not in result
+
+    def test_detect_inventory_dir(self, inventory_dir):
+        """Test that detect_inventory_dir finds the CSVs."""
+        result = detect_inventory_dir(str(inventory_dir))
+        assert result == inventory_dir
+
+    def test_detect_inventory_dir_missing(self, tmp_path):
+        """Test error when CSVs are not found."""
+        with pytest.raises(FileNotFoundError):
+            detect_inventory_dir(str(tmp_path / "nonexistent"))
+
+    def test_obs_filters_with_inventory(self, inventory_dir, mock_census):
+        """Test that build_obs_value_filter uses inventory when set."""
+        filters = ObsFilters(
+            is_primary_data=True,
+            inventory_dir=str(inventory_dir),
+            min_age_years=15,
+        )
+        result = build_obs_value_filter(mock_census, filters)
+        assert "development_stage_ontology_term_id in" in result
+        assert "HsapDv:0000087" in result  # adult stage
 
 
 # =============================================================================

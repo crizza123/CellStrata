@@ -56,11 +56,14 @@ from ._filters import (
     build_obs_value_filter,
     _default_obs_columns,
     build_obs_export_columns,
+    detect_inventory_dir,
+    build_stage_ids_ge15,
 )
 
 # --- I/O: streaming, Arrow/Parquet, TileDB context ---
 from ._io import (
     _resolve_outpath,
+    pick_existing_cols,
     stream_obs_tables,
     write_parquet_stream,
     write_parquet_parts,
@@ -99,8 +102,11 @@ __all__ = [
     "choose_organ_column",
     "build_obs_value_filter",
     "build_obs_export_columns",
+    "detect_inventory_dir",
+    "build_stage_ids_ge15",
     # I/O
     "_resolve_outpath",
+    "pick_existing_cols",
     "stream_obs_tables",
     "write_parquet_stream",
     "write_parquet_parts",
