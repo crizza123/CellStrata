@@ -70,7 +70,7 @@ from ._io import (
 )
 
 # --- Runner: query orchestration and CLI ---
-from ._runner import run_query, main
+from ._runner import _execute_query, run_query, main
 
 # --- Visualization: metadata plotting ---
 from ._visualize import (
