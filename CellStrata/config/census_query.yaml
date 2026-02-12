@@ -7,22 +7,24 @@ obs_filters:
   is_primary_data: true
   suspension_type: cell
 
-  # normal disease as an ontology term id
+  # normal/healthy disease
   disease_ontology_term_ids: ["PATO:0000461"]
 
-  # resolve labels -> ontology term ids via summary_cell_counts
-  assay_labels: ["10x 3' v2", "10x 3' v3", "10x multiome"]
-  sex_labels: ["male", "female"]
+  # Tissue and cell type filters — REQUIRED to avoid querying 60M+ cells
+  tissue_general_labels: ["lung"]
+  cell_type_labels: ["mast cell"]
+
+  # Optional: narrow by assay or sex (commented out for speed)
+  # assay_labels: ["10x 3' v2", "10x 3' v3", "10x multiome"]
+  # sex_labels: ["male", "female"]
 
   # additional custom fragment if you need it
   # extra_value_filter: "development_stage != 'unknown'"
 
-# Return directly (no parquet)
 output:
   mode: pandas
 
-# Optional: mitigate S3 timeouts by tuning TileDB VFS settings.
-# These keys are valid TileDB config names (e.g., vfs.s3.connect_timeout_ms, vfs.s3.request_timeout_ms). 
+# Mitigate S3 timeouts
 tiledb_config:
   vfs.s3.connect_timeout_ms: 60000
   vfs.s3.request_timeout_ms: 600000
