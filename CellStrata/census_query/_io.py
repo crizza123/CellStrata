@@ -79,28 +79,30 @@ def _make_soma_context(tiledb_config: Dict[str, Any]):
     """
     Create a SOMATileDBContext for tuning S3 timeouts/retries.
 
-    Applies sensible default S3 timeout settings even when no user config
-    is provided, to prevent stalls on slow or congested S3 connections.
+    Returns ``None`` when *tiledb_config* is empty so that
+    ``open_soma`` uses its own defaults — which is the configuration
+    that the CELLxGENE notebooks use and is known to work reliably.
+
+    A custom context is only built when the caller explicitly provides
+    overrides via ``tiledb_config``.
 
     Args:
         tiledb_config: TileDB configuration dictionary (user overrides).
 
     Returns:
-        SOMATileDBContext, or None if tiledbsoma is not available.
+        SOMATileDBContext, or None (let open_soma use defaults).
     """
-    if soma is None:
-        if tiledb_config:
-            raise RuntimeError(
-                "tiledbsoma is not importable, but tiledb_config was provided."
-            )
+    if not tiledb_config:
+        logger.info("No tiledb_config provided — using open_soma defaults")
         return None
 
-    merged = dict(_DEFAULT_S3_CONFIG)
-    if tiledb_config:
-        merged.update(tiledb_config)
+    if soma is None:
+        raise RuntimeError(
+            "tiledbsoma is not importable, but tiledb_config was provided."
+        )
 
-    logger.info("TileDB context: %s", {k: v for k, v in merged.items()})
-    return soma.SOMATileDBContext(tiledb_config=merged)
+    logger.info("TileDB context: %s", {k: v for k, v in tiledb_config.items()})
+    return soma.SOMATileDBContext(tiledb_config=tiledb_config)
 
 
 def pick_existing_cols(
