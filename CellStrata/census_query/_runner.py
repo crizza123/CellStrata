@@ -9,7 +9,9 @@ from __future__ import annotations
 
 import argparse
 import logging
+import threading
 import time
+from contextlib import contextmanager
 from pathlib import Path
 from typing import (
     Any,
@@ -38,6 +40,29 @@ from ._io import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+@contextmanager
+def _heartbeat(message: str, interval: float = 10.0):
+    """Log *message* every *interval* seconds until the block exits.
+
+    Useful around blocking calls (like ``open_soma``) that produce no
+    output for a long time so the user knows the process is alive.
+    """
+    stop = threading.Event()
+    t0 = time.monotonic()
+
+    def _tick():
+        while not stop.wait(interval):
+            logger.info("%s (%.0fs elapsed)", message, time.monotonic() - t0)
+
+    thread = threading.Thread(target=_tick, daemon=True)
+    thread.start()
+    try:
+        yield
+    finally:
+        stop.set()
+        thread.join(timeout=2.0)
 
 
 def _execute_query(census, spec: QuerySpec) -> Union[pd.DataFrame, pa.Table, Any, Path]:
@@ -252,11 +277,12 @@ def run_query(spec: QuerySpec) -> Union[pd.DataFrame, pa.Table, Any, Path]:
 
     t_open = time.monotonic()
     logger.debug("open_soma() connecting...")
-    with cxc.open_soma(census_version=spec.target.census_version, context=context) as census:
-        logger.debug("open_soma() ready in %.2fs", time.monotonic() - t_open)
-        result = _execute_query(census, spec)
-        logger.debug("_execute_query returned, exiting context manager "
-                      "(cleanup may be slow)...")
+    with _heartbeat("Still connecting to Census S3..."):
+        with cxc.open_soma(census_version=spec.target.census_version, context=context) as census:
+            logger.info("open_soma() ready in %.2fs", time.monotonic() - t_open)
+            result = _execute_query(census, spec)
+            logger.debug("_execute_query returned, exiting context manager "
+                          "(cleanup may be slow)...")
     logger.debug("open_soma __exit__ finished in %.2fs",
                   time.monotonic() - t_open)
     return result
@@ -306,28 +332,29 @@ The YAML configuration file should specify:
         # *before* __exit__() runs — its S3 cleanup can stall.
         t_open = time.monotonic()
         logger.debug("open_soma() connecting...")
-        with cxc.open_soma(
-            census_version=spec.target.census_version, context=context
-        ) as census:
-            logger.debug("open_soma() ready in %.2fs", time.monotonic() - t_open)
-            result = _execute_query(census, spec)
+        with _heartbeat("Still connecting to Census S3..."):
+            with cxc.open_soma(
+                census_version=spec.target.census_version, context=context
+            ) as census:
+                logger.info("open_soma() ready in %.2fs", time.monotonic() - t_open)
+                result = _execute_query(census, spec)
 
-            if isinstance(result, pd.DataFrame) and spec.output.mode == "dataset_list":
-                print(f"\nFound {len(result)} unique dataset(s) "
-                      f"({result['cell_count'].sum():,} cells total):")
-                print(result.to_string(index=False))
-            elif isinstance(result, pd.DataFrame):
-                print(f"\nQuery returned DataFrame with {len(result):,} rows")
-                print(f"Columns: {list(result.columns)}")
-                print(f"\nFirst 5 rows:\n{result.head()}")
-            elif isinstance(result, pa.Table):
-                print(f"\nQuery returned Arrow Table with {result.num_rows:,} rows")
-            elif isinstance(result, Path):
-                print(f"\nQuery output written to: {result}")
-            else:
-                print(f"\nQuery returned: {type(result)}")
+                if isinstance(result, pd.DataFrame) and spec.output.mode == "dataset_list":
+                    print(f"\nFound {len(result)} unique dataset(s) "
+                          f"({result['cell_count'].sum():,} cells total):")
+                    print(result.to_string(index=False))
+                elif isinstance(result, pd.DataFrame):
+                    print(f"\nQuery returned DataFrame with {len(result):,} rows")
+                    print(f"Columns: {list(result.columns)}")
+                    print(f"\nFirst 5 rows:\n{result.head()}")
+                elif isinstance(result, pa.Table):
+                    print(f"\nQuery returned Arrow Table with {result.num_rows:,} rows")
+                elif isinstance(result, Path):
+                    print(f"\nQuery output written to: {result}")
+                else:
+                    print(f"\nQuery returned: {type(result)}")
 
-            logger.debug("output printed, exiting context (cleanup may be slow)...")
+                logger.debug("output printed, exiting context (cleanup may be slow)...")
 
         logger.info("Census connection closed (%.2fs for __exit__).",
                      time.monotonic() - t_open)
