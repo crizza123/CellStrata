@@ -78,7 +78,5 @@ The script writes a `results.csv` summarizing the number of cells per
 dataset. Each row is one dataset with its cell count.
 
 ---
-
-
     census_query.yaml     # example config
 ```
