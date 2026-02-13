@@ -1,0 +1,42 @@
+# CellStrata conda environment
+# Create:  conda env create -f environment.yml
+# Activate: conda activate cellstrata
+# Update:  conda env update -f environment.yml --prune
+
+name: cellstrata
+channels:
+  - conda-forge
+  - defaults
+
+dependencies:
+  - python>=3.10,<3.13
+  - pip>=23.0
+
+  # Core data science
+  - pandas>=2.0
+  - numpy>=1.24
+  - scipy
+
+  # Single-cell
+  - scanpy>=1.9
+  - anndata>=0.9
+
+  # Visualization
+  - matplotlib>=3.7
+  - seaborn>=0.12
+
+  # Configuration
+  - pyyaml>=6.0
+
+  # Notebook (optional — remove if running headless)
+  - jupyterlab>=4.0
+  - ipywidgets
+
+  # Testing
+  - pytest>=7.0
+
+  # pip-only packages (not on conda-forge or need specific versions)
+  - pip:
+      - cellxgene-census>=1.0.0
+      - tiledbsoma>=1.5.0
+      - -e .   # install CellStrata itself in editable mode

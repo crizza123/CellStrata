@@ -34,7 +34,7 @@ notebook = [
 ]
 
 [project.scripts]
-cellstrata-query = "CellStrata.census_query._runner:main"
+cellstrata-query = "CellStrata.scripts.run_census_query:main"
 
 [tool.setuptools.packages.find]
 include = ["CellStrata*"]
