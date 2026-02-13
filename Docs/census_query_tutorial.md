@@ -57,7 +57,7 @@ output:
 ### Step 2: Run the query
 
 ```bash
-python CellStrata/scripts/run_census_query.py --config CellStrata/census_query.yaml
+python CellStrata/scripts/run_census_query.py --config CellStrata/config/census_query.yaml
 ```
 
 Or, if you installed the package with `pip install -e .`:
