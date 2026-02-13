@@ -1,63 +1,71 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36 Edg/143.0.0.0" version="29.3.7">
+<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36 Edg/143.0.0.0" version="29.3.8">
   <diagram name="Page-1" id="UMC4DnocZ4UFklyOJZG3">
-    <mxGraphModel dx="2066" dy="1138" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+    <mxGraphModel dx="4395" dy="6365" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="6BgYMuSPJ84oQhUDcwHm-2" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="&lt;span style=&quot;font-size: 25px;&quot;&gt;Configuration File&lt;/span&gt;&lt;div&gt;&lt;span style=&quot;font-size: 25px;&quot;&gt;(input)&lt;/span&gt;&lt;/div&gt;" vertex="1">
-          <mxGeometry height="70" width="200" x="-79" y="30" as="geometry" />
+        <mxCell id="6BgYMuSPJ84oQhUDcwHm-2" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="&lt;span style=&quot;font-size: 25px;&quot;&gt;Configuration File&lt;/span&gt;&lt;div&gt;&lt;span style=&quot;font-size: 25px;&quot;&gt;(.yml)&lt;/span&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="70" width="200" x="-802" y="-4400" as="geometry" />
         </mxCell>
         <mxCell id="6BgYMuSPJ84oQhUDcwHm-4" parent="1" style="shape=singleArrow;whiteSpace=wrap;html=1;fillColor=#080808;rotation=90;" value="" vertex="1">
-          <mxGeometry height="12.5" width="52.5" x="-6.949999999999989" y="130" as="geometry" />
+          <mxGeometry height="12.5" width="52.5" x="-729.95" y="-4300" as="geometry" />
         </mxCell>
-        <mxCell id="6BgYMuSPJ84oQhUDcwHm-5" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="&lt;div&gt;&lt;font style=&quot;font-size: 22px;&quot;&gt;&lt;b&gt;Census query&amp;nbsp;&lt;/b&gt;&lt;/font&gt;&lt;/div&gt;&lt;div&gt;&lt;font style=&quot;font-size: 18px;&quot;&gt;&lt;b&gt;Module 1&lt;/b&gt;&lt;/font&gt;&lt;/div&gt;&lt;div&gt;&lt;font style=&quot;font-size: 18px;&quot;&gt;&lt;b&gt;census_query.py&lt;/b&gt;&lt;/font&gt;&lt;span style=&quot;font-size: 18px; background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot;&gt;&amp;nbsp;&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;font style=&quot;font-size: 18px;&quot;&gt;&lt;font style=&quot;&quot;&gt;-&lt;/font&gt;&lt;font style=&quot;&quot;&gt;Metadata download&lt;/font&gt;&lt;/font&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;font-size: 18px; background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot;&gt;-Metadata Filtering&lt;/span&gt;&lt;/div&gt;" vertex="1">
-          <mxGeometry height="135" width="209" x="-79" y="167" as="geometry" />
+        <mxCell id="6BgYMuSPJ84oQhUDcwHm-5" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="&lt;div&gt;&lt;font style=&quot;font-size: 22px;&quot;&gt;&lt;b&gt;Census query&amp;nbsp;&lt;/b&gt;&lt;/font&gt;&lt;/div&gt;&lt;div&gt;&lt;font style=&quot;font-size: 18px;&quot;&gt;&lt;b&gt;Module 1&lt;/b&gt;&lt;/font&gt;&lt;/div&gt;&lt;div&gt;&lt;font style=&quot;font-size: 18px;&quot;&gt;&lt;b&gt;census_query.py&lt;/b&gt;&lt;/font&gt;&lt;span style=&quot;font-size: 18px; background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot;&gt;&amp;nbsp;&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;font-size: 18px; background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot;&gt;-Metadata Filtering&lt;/span&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="135" width="209" x="-802" y="-4263" as="geometry" />
         </mxCell>
         <mxCell id="6BgYMuSPJ84oQhUDcwHm-17" parent="1" style="shape=singleArrow;whiteSpace=wrap;html=1;fillColor=#080808;rotation=90;" value="" vertex="1">
-          <mxGeometry height="12.5" width="96.57" x="-28.99000000000001" y="350" as="geometry" />
+          <mxGeometry height="12.5" width="96.57" x="-751.99" y="-4080" as="geometry" />
         </mxCell>
-        <mxCell id="6BgYMuSPJ84oQhUDcwHm-26" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="&lt;span style=&quot;font-size: 20px;&quot;&gt;&lt;b&gt;Data QC&amp;nbsp;&lt;/b&gt;&lt;/span&gt;&lt;div&gt;&lt;b style=&quot;&quot;&gt;&lt;font style=&quot;font-size: 18px;&quot;&gt;Module 2&amp;nbsp;&lt;br&gt;&lt;/font&gt;&lt;/b&gt;&lt;div&gt;&lt;b&gt;&lt;font style=&quot;font-size: 18px;&quot;&gt;qc_pipeline.py&lt;br&gt;&lt;/font&gt;&lt;/b&gt;&lt;div&gt;&lt;div&gt;&lt;font style=&quot;font-size: 18px;&quot;&gt;- Mitochondrial Content&lt;/font&gt;&lt;/div&gt;&lt;div&gt;&lt;font style=&quot;font-size: 18px;&quot;&gt;-Doublet Detection&lt;/font&gt;&lt;/div&gt;&lt;div&gt;&lt;font style=&quot;font-size: 18px;&quot;&gt;- Counts per Cell&lt;/font&gt;&lt;/div&gt;&lt;div&gt;&lt;font style=&quot;font-size: 18px;&quot;&gt;- Genes per Cell&lt;/font&gt;&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;" vertex="1">
-          <mxGeometry height="159.38" width="228" x="-87" y="410" as="geometry" />
+        <mxCell id="6BgYMuSPJ84oQhUDcwHm-26" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="&lt;span style=&quot;font-size: 20px;&quot;&gt;&lt;b&gt;Data QC&amp;nbsp;&lt;/b&gt;&lt;/span&gt;&lt;div&gt;&lt;b&gt;&lt;font style=&quot;font-size: 18px;&quot;&gt;Module 2&amp;nbsp;&lt;br&gt;&lt;/font&gt;&lt;/b&gt;&lt;div&gt;&lt;b&gt;&lt;font style=&quot;font-size: 18px;&quot;&gt;qc_pipeline.py&lt;br&gt;&lt;/font&gt;&lt;/b&gt;&lt;div&gt;&lt;div&gt;&lt;font style=&quot;font-size: 18px;&quot;&gt;- Mitochondrial Content&lt;/font&gt;&lt;/div&gt;&lt;div&gt;&lt;font style=&quot;font-size: 18px;&quot;&gt;-Doublet Detection&lt;/font&gt;&lt;/div&gt;&lt;div&gt;&lt;font style=&quot;font-size: 18px;&quot;&gt;- Counts per Cell&lt;/font&gt;&lt;/div&gt;&lt;div&gt;&lt;font style=&quot;font-size: 18px;&quot;&gt;- Genes per Cell&lt;/font&gt;&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="159.38" width="228" x="-820" y="-3865" as="geometry" />
         </mxCell>
         <mxCell id="6BgYMuSPJ84oQhUDcwHm-30" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="&lt;span style=&quot;font-size: 20px;&quot;&gt;QC Visualizations,&lt;/span&gt;&lt;span style=&quot;font-size: 20px; background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot;&gt;&amp;nbsp;Metrics,&amp;nbsp;&lt;/span&gt;&lt;div&gt;&lt;span style=&quot;font-size: 20px; background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot;&gt;and filtered dataset&amp;nbsp;&lt;/span&gt;&lt;/div&gt;" vertex="1">
-          <mxGeometry height="100" width="230" x="279" y="450" as="geometry" />
+          <mxGeometry height="100" width="230" x="-454" y="-3815" as="geometry" />
         </mxCell>
         <mxCell id="6BgYMuSPJ84oQhUDcwHm-63" parent="1" style="shape=singleArrow;whiteSpace=wrap;html=1;fillColor=#080808;rotation=0;" value="" vertex="1">
-          <mxGeometry height="12.5" width="68.74" x="151" y="490" as="geometry" />
+          <mxGeometry height="12.5" width="68.74" x="-582" y="-3775" as="geometry" />
         </mxCell>
         <mxCell id="6BgYMuSPJ84oQhUDcwHm-64" parent="1" style="shape=singleArrow;whiteSpace=wrap;html=1;fillColor=#080808;rotation=90;" value="" vertex="1">
-          <mxGeometry height="12.5" width="86.57" x="-19.945000000000004" y="630.005" as="geometry" />
+          <mxGeometry height="12.5" width="57.79" x="-736.39" y="-3674.4" as="geometry" />
         </mxCell>
         <mxCell id="6BgYMuSPJ84oQhUDcwHm-65" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="&lt;div&gt;&lt;font style=&quot;font-size: 16px;&quot;&gt;&lt;b&gt;Integration&amp;nbsp;&lt;/b&gt;&lt;/font&gt;&lt;/div&gt;&lt;div&gt;&lt;font style=&quot;font-size: 16px;&quot;&gt;&lt;b&gt;Module 3&amp;nbsp;&lt;/b&gt;&lt;/font&gt;&lt;/div&gt;&lt;div&gt;&lt;font style=&quot;font-size: 16px;&quot;&gt;&lt;b&gt;integration.py&lt;/b&gt;&lt;/font&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot;&gt;&lt;font style=&quot;font-size: 16px;&quot;&gt;-Normalization&lt;/font&gt;&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;font style=&quot;font-size: 16px;&quot;&gt;-Integration&amp;nbsp;&lt;/font&gt;&lt;/div&gt;&lt;div&gt;&lt;font style=&quot;font-size: 16px;&quot;&gt;-Clustering&amp;nbsp;&lt;/font&gt;&lt;/div&gt;" vertex="1">
-          <mxGeometry height="120" width="200" x="-73" y="690" as="geometry" />
+          <mxGeometry height="120" width="200" x="-803" y="-3628.75" as="geometry" />
         </mxCell>
         <mxCell id="6BgYMuSPJ84oQhUDcwHm-74" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="&lt;span style=&quot;font-size: 20px;&quot;&gt;Integrated Dataset, UMAP Visualization&lt;/span&gt;" vertex="1">
-          <mxGeometry height="100" width="230" x="239.75" y="700" as="geometry" />
+          <mxGeometry height="100" width="230" x="-504.12" y="-3608.75" as="geometry" />
         </mxCell>
         <mxCell id="6BgYMuSPJ84oQhUDcwHm-75" parent="1" style="shape=singleArrow;whiteSpace=wrap;html=1;fillColor=#080808;rotation=0;" value="" vertex="1">
-          <mxGeometry height="12.5" width="68.74" x="141" y="743.75" as="geometry" />
+          <mxGeometry height="12.5" width="68.74" x="-592" y="-3550" as="geometry" />
         </mxCell>
-        <mxCell id="rrPi6ITq_YSTQSiNAN2M-1" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="&lt;span style=&quot;font-size: 20px;&quot;&gt;AnnData (.h5ad)&lt;br&gt;Parquet or Pandas Dataframe (summary of metadata)&lt;/span&gt;&lt;div&gt;&lt;span style=&quot;font-size: 20px;&quot;&gt;&amp;nbsp;&lt;/span&gt;&lt;/div&gt;" vertex="1">
-          <mxGeometry height="105" width="292" x="248" y="187.5" as="geometry" />
+        <mxCell id="rrPi6ITq_YSTQSiNAN2M-1" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="&lt;span style=&quot;font-size: 20px;&quot;&gt;List of Datasets(.csv format)&lt;/span&gt;" vertex="1">
+          <mxGeometry height="67.5" width="292" x="-475" y="-4223.75" as="geometry" />
         </mxCell>
         <mxCell id="rrPi6ITq_YSTQSiNAN2M-2" parent="1" style="shape=singleArrow;whiteSpace=wrap;html=1;fillColor=#080808;rotation=0;" value="" vertex="1">
-          <mxGeometry height="12.5" width="68.74" x="151" y="233.75" as="geometry" />
+          <mxGeometry height="12.5" width="68.74" x="-572" y="-4196.25" as="geometry" />
         </mxCell>
         <mxCell id="rrPi6ITq_YSTQSiNAN2M-4" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="&lt;span style=&quot;font-size: 20px;&quot;&gt;&lt;b&gt;Cell Type Annotation&amp;nbsp;&lt;/b&gt;&lt;/span&gt;&lt;div&gt;&lt;span style=&quot;font-size: 20px;&quot;&gt;&lt;b&gt;-Identify Marker Genes&lt;/b&gt;&lt;/span&gt;&lt;/div&gt;" vertex="1">
-          <mxGeometry height="100" width="211" x="-90" y="920" as="geometry" />
+          <mxGeometry height="100" width="211" x="-803" y="-3400" as="geometry" />
         </mxCell>
         <mxCell id="rrPi6ITq_YSTQSiNAN2M-5" parent="1" style="shape=singleArrow;whiteSpace=wrap;html=1;fillColor=#080808;rotation=90;" value="" vertex="1">
-          <mxGeometry height="12.5" width="78.47" x="-19.939999999999998" y="861.42" as="geometry" />
+          <mxGeometry height="12.5" width="78.47" x="-745.24" y="-3460" as="geometry" />
         </mxCell>
         <mxCell id="rrPi6ITq_YSTQSiNAN2M-7" parent="1" style="shape=singleArrow;whiteSpace=wrap;html=1;fillColor=#080808;rotation=0;" value="" vertex="1">
-          <mxGeometry height="12.5" width="68.74" x="141" y="963.75" as="geometry" />
+          <mxGeometry height="12.5" width="68.74" x="-572" y="-3356.25" as="geometry" />
         </mxCell>
         <mxCell id="rrPi6ITq_YSTQSiNAN2M-8" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="&lt;span style=&quot;font-size: 20px;&quot;&gt;Marker UMAP Projection&lt;/span&gt;&lt;div&gt;&lt;span style=&quot;font-size: 20px;&quot;&gt;Sub-clustering on Annotated cluster of interest&amp;nbsp;&lt;/span&gt;&lt;/div&gt;" vertex="1">
-          <mxGeometry height="100" width="290.25" x="228.88" y="920" as="geometry" />
+          <mxGeometry height="100" width="290.25" x="-484.12" y="-3400" as="geometry" />
         </mxCell>
         <mxCell id="rrPi6ITq_YSTQSiNAN2M-9" edge="1" parent="1" source="rrPi6ITq_YSTQSiNAN2M-7" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0;exitY=0;exitDx=27.496;exitDy=8.125;exitPerimeter=0;entryX=0;entryY=0;entryDx=54.992;entryDy=0;entryPerimeter=0;" target="rrPi6ITq_YSTQSiNAN2M-7">
           <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="Nz6vQdQ4sir17bdRnpuH-2" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="&lt;span style=&quot;font-size: 20px;&quot;&gt;&lt;b&gt;Dataset Download&lt;/b&gt;&lt;/span&gt;&lt;div&gt;&lt;b&gt;&lt;font style=&quot;font-size: 18px;&quot;&gt;download_query.py&lt;br&gt;&lt;/font&gt;&lt;/b&gt;&lt;div&gt;&lt;div&gt;&lt;font style=&quot;font-size: 18px;&quot;&gt;-Obtain Raw Files&lt;/font&gt;&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="80" width="228" x="-810" y="-4015" as="geometry" />
+        </mxCell>
+        <mxCell id="Nz6vQdQ4sir17bdRnpuH-3" parent="1" style="shape=singleArrow;whiteSpace=wrap;html=1;fillColor=#080808;rotation=90;" value="" vertex="1">
+          <mxGeometry height="12.5" width="54.54" x="-744.77" y="-3905" as="geometry" />
+        </mxCell>
+        <mxCell id="Nz6vQdQ4sir17bdRnpuH-5" parent="1" style="shape=singleArrow;whiteSpace=wrap;html=1;fillColor=#080808;rotation=-237;" value="" vertex="1">
+          <mxGeometry height="13.49" width="134.6" x="-586.78" y="-4089.8" as="geometry" />
         </mxCell>
       </root>
     </mxGraphModel>
