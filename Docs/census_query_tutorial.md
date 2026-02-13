@@ -1,4 +1,4 @@
-# census_query Tutorial
+# census_query - first function tutorial.
 
 A practical guide to querying the CELLxGENE Census with CellStrata's
 `census` package. The running example throughout this tutorial is
