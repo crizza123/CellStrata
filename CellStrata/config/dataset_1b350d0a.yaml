@@ -1,22 +1,14 @@
-# Configuration to download specific dataset: 1b350d0a-4535-4879-beb6-1142f3f94947
-# This downloads the full dataset as AnnData (.h5ad)
+# Configuration to query specific dataset: 1b350d0a-4535-4879-beb6-1142f3f94947
 
 target:
   census_version: stable
   organism: homo_sapiens
-  measurement: RNA
 
 obs_filters:
   # Filter to only this specific dataset
-  extra_value_filter: "dataset_id == '1b350d0a-4535-4879-beb6-1142f3f94947'"
+  dataset_id: "1b350d0a-4535-4879-beb6-1142f3f94947"
 
-# Output as AnnData to get expression matrix + metadata
 output:
-  mode: anndata
-  outpath: "data/raw/dataset_1b350d0a.h5ad"
-  overwrite: true
-
-# TileDB settings for large downloads
-tiledb_config:
-  vfs.s3.connect_timeout_ms: 60000
-  vfs.s3.request_timeout_ms: 600000
+  summary_csv: "data/dataset_1b350d0a_summary.csv"
+  celllevel_csv: "data/dataset_1b350d0a_cells.csv"
+  write_celllevel: true

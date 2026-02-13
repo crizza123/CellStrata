@@ -45,7 +45,8 @@ class CensusQueryConfig:
 
 
 def load_config(path: str | Path) -> CensusQueryConfig:
-    cfg = yaml.safe_load(Path(path).read_text())
+    raw = yaml.safe_load(Path(path).read_text())
+    cfg = raw if raw is not None else {}
 
     target = CensusTarget(**cfg.get("target", {}))
     obs_filters = ObsFilters(**cfg.get("obs_filters", {}))

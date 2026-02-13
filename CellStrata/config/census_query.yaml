@@ -1,31 +1,21 @@
 target:
   census_version: stable
   organism: homo_sapiens
-  measurement: RNA
 
 obs_filters:
   is_primary_data: true
-  suspension_type: cell
 
-  # normal/healthy disease
-  disease_ontology_term_ids: ["PATO:0000461"]
-
-  # Tissue and cell type filters — REQUIRED to avoid querying 60M+ cells
-  tissue_general_labels: ["brain"]
-  cell_type_labels: ["T cell"]
+  # Use plain labels for filtering
+  disease: ["normal"]
+  tissue_general: ["brain"]
+  cell_type: ["T cell"]
 
   # Optional: narrow by assay or sex
-  assay_labels: ["10x 3' v2", "10x 3' v3", "10x multiome"]
-  sex_labels: ["male", "female"]
+  assay: ["10x 3' v2", "10x 3' v3", "10x multiome"]
+  sex: ["male", "female"]
 
   # additional custom fragment if you need it
   # extra_value_filter: "development_stage != 'unknown'"
 
 output:
-  mode: dataset_list
-  outpath: results.csv
-
-# Mitigate S3 timeouts
-tiledb_config:
-  vfs.s3.connect_timeout_ms: 60000
-  vfs.s3.request_timeout_ms: 600000
+  summary_csv: results.csv

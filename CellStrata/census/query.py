@@ -8,7 +8,7 @@ from .filters import build_value_filter
 
 def validate_obs_cols(census, organism: str, obs_cols: list[str]) -> None:
     human = census["census_data"][organism]
-    schema_names = set(human.obs.schema.names)
+    schema_names = set(human.obs.keys())
     missing = [c for c in obs_cols if c not in schema_names]
     if missing:
         raise ValueError(f"Missing obs columns in schema: {missing}")

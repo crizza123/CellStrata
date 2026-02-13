@@ -1,15 +1,26 @@
 #!/usr/bin/env python3
+"""Run a Census query from a YAML config file."""
 from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+# When running standalone (not installed via pip), ensure the repo root is on
+# sys.path so that "from CellStrata.census..." resolves.
+_repo_root = str(Path(__file__).resolve().parent.parent.parent)
+if _repo_root not in sys.path:
+    sys.path.insert(0, _repo_root)
+
 import argparse
 
-from cellstrata.census.config import load_config
-from cellstrata.census.query import fetch_obs_df, summarize_by_dataset
-from cellstrata.census.outputs import write_summary_csv, write_celllevel_csv
+from CellStrata.census.config import load_config
+from CellStrata.census.query import fetch_obs_df, summarize_by_dataset
+from CellStrata.census.outputs import write_summary_csv, write_celllevel_csv
 
 
 def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--config", required=True)
+    ap = argparse.ArgumentParser(description="Run a CellStrata Census query")
+    ap.add_argument("--config", required=True, help="Path to YAML config file")
     args = ap.parse_args()
 
     cfg = load_config(args.config)
